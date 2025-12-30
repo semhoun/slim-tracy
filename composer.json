@@ -1,72 +1,76 @@
 {
-    "name": "semhoun/slim-tracy",
-    "description": "Tracy for Slim4 Framework Debugger",
-    "license": "Apache-2.0",
-    "type": "library",
-    "keywords": [
-        "Slim Framework",
-        "SlimTracy",
-        "Tracy",
-        "Debug bar",
-        "Debugbar",
-        "Debugger",
-        "Eloquent ORM",
-        "illuminate database",
-        "PTY Terminal",
-        "Profiler",
-        "Slim4",
-        "Slim 4",
-        "Twig",
-        "Doctrine DBAL"
-    ],
-    "authors": [
-        {
-            "name": "Konstantin Kaluzhnikov",
-            "email": "k.kaluzhnikov@gmail.com",
-            "homepage": "https://github.com/EvilKraft"
-        },
-        {
-            "name": "Nathanael Semhoun",
-            "email": "nathanael@semhoun.net",
-            "homepage": "http://www.semhoun.net"
-        }
-    ],
-    "require": {
-        "php": "^8.0",
-        "ext-mbstring": "*",
-        "ext-json": "*",
-        "tracy/tracy": "^2.10",
-        "slim/slim": "^4.9"
+  "name": "semhoun/slim-tracy",
+  "description": "Tracy for Slim4 Framework Debugger",
+  "license": "Apache-2.0",
+  "type": "library",
+  "keywords": [
+    "Slim Framework",
+    "SlimTracy",
+    "Tracy",
+    "Debug bar",
+    "Debugbar",
+    "Debugger",
+    "Eloquent ORM",
+    "illuminate database",
+    "PTY Terminal",
+    "Profiler",
+    "Slim4",
+    "Slim 4",
+    "Twig",
+    "Doctrine DBAL"
+  ],
+  "authors": [
+    {
+      "name": "Konstantin Kaluzhnikov",
+      "email": "k.kaluzhnikov@gmail.com",
+      "homepage": "https://github.com/EvilKraft"
     },
-    "require-dev": {
-		"nunomaduro/phpinsights": "^2.11",
-        "phpunit/phpunit": "^10.0",
-        "illuminate/database": "^10.0",
-        "twig/twig": "^3.3",
-        "slim/twig-view": "^3.3",
-        "doctrine/orm": "^3"
-    },
-    "autoload": {
-        "psr-4": {
-            "SlimTracy\\": "src/SlimTracy"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/"
-        }
-    },
-    "scripts": {
-        "test": [
-            "@phpunit"
-        ],
-        "phpunit": "php vendor/bin/phpunit",
-		"check": "phpinsights --config-path=./phpinsights.php",
-        "fix": "phpinsights --config-path=./phpinsights.php -- fix"
-    },
-    "config": {
-        "allow-plugins": {
-            "dealerdirect/phpcodesniffer-composer-installer": true
-        }
+    {
+      "name": "Nathanael Semhoun",
+      "email": "nathanael@semhoun.net",
+      "homepage": "http://www.semhoun.net"
     }
+  ],
+  "version": "1.1.0",
+  "require": {
+    "php": "^8.2",
+    "ext-mbstring": "*",
+    "ext-json": "*",
+    "tracy/tracy": "^2.11",
+    "slim/slim": "^4.9"
+  },
+  "require-dev": {
+    "nunomaduro/phpinsights": "^2.13",
+    "rector/rector": "^2.2",
+    "phpunit/phpunit": "^10.0",
+    "illuminate/database": "^10.0",
+    "twig/twig": "^3.3",
+    "slim/twig-view": "^3.3",
+    "doctrine/orm": "^3"
+  },
+  "autoload": {
+    "psr-4": {
+      "SlimTracy\\": "src/SlimTracy"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": [
+      "@phpunit"
+    ],
+    "phpunit": "php vendor/bin/phpunit",
+    "rector-check": "rector process --dry-run",
+    "rector-fix": "rector process",
+    "insights-check": "phpinsights --config-path=./phpinsights.php",
+    "insights-fix": "phpinsights --config-path=./phpinsights.php -- fix"
+  },
+  "config": {
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
+  }
 }
