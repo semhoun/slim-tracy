@@ -24,7 +24,8 @@ use Tracy\IBarPanel;
 
 class VendorVersionsPanel implements IBarPanel
 {
-    private $error;
+    private ?string $error = null;
+
     private $dir;
 
     public function __construct($composerLockDir = null)
@@ -36,7 +37,7 @@ class VendorVersionsPanel implements IBarPanel
         if (! is_dir($dir = realpath($composerLockDir))) {
             $this->error = 'Path "' . $composerLockDir . '" is not a directory.';
         } elseif (! is_file($dir . \DIRECTORY_SEPARATOR . 'composer.lock')) {
-            $this->error = "Directory '{$dir}' does not contain the composer.lock file.";
+            $this->error = sprintf("Directory '%s' does not contain the composer.lock file.", $dir);
         } else {
             $this->dir = $dir;
         }
@@ -85,25 +86,28 @@ class VendorVersionsPanel implements IBarPanel
     }
 
     // test case
-    public function getError()
+    public function getError(): ?string
     {
         return $this->error;
     }
 
-    private function format(array $packages, array $required)
+    /**
+     * @return (object{installed: string, required: mixed, url: (array | string | null)} & \stdClass)[]
+     */
+    private function format(array $packages, array $required): array
     {
         $data = [];
-        foreach ($packages as $p) {
-            $data[$p['name']] = (object) [
-                'installed' => $p['version'] . ($p['version'] === 'dev-master'
-                        ? ' #' . substr($p['source']['reference'], 0, 7)
+        foreach ($packages as $package) {
+            $data[$package['name']] = (object) [
+                'installed' => $package['version'] . ($package['version'] === 'dev-master'
+                        ? ' #' . substr((string) $package['source']['reference'], 0, 7)
                         : ''),
 
-                'required' => $required[$p['name']]
+                'required' => $required[$package['name']]
                     ?? null,
 
-                'url' => isset($p['source']['url'])
-                    ? preg_replace('/\.git$/', '', $p['source']['url'])
+                'url' => isset($package['source']['url'])
+                    ? preg_replace('/\.git$/', '', $package['source']['url'])
                     : null,
             ];
         }
@@ -113,9 +117,6 @@ class VendorVersionsPanel implements IBarPanel
         return $data;
     }
 
-    /**
-     * @return array|null
-     */
     private function decode(string $file): ?array
     {
         if (! is_file($file)) {

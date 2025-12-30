@@ -29,16 +29,22 @@ use Tracy\IBarPanel;
 class ProfilerPanel implements IBarPanel
 {
     protected const CONFIG_PRIMARY_VALUE = 'primaryValue';
+
     protected const CONFIG_PRIMARY_VALUE_ABSOLUTE = 'absolute';
+
     protected const CONFIG_PRIMARY_VALUE_EFFECTIVE = 'effective';
+
     protected const CONFIG_SHOW = 'show';
+
     protected const CONFIG_SHOW_MEMORY_USAGE_CHART = 'memoryUsageChart';
+
     protected const CONFIG_SHOW_SHORT_PROFILES = 'shortProfiles';
+
     protected const CONFIG_SHOW_TIME_LINES = 'timeLines';
 
     private $profilerService;
 
-    private $config;
+    private array $config;
 
     public function __construct(array $config = [])
     {
@@ -99,6 +105,7 @@ class ProfilerPanel implements IBarPanel
             $table .= '
             <tr><th>Start</th><th>Finish</th><th>Time (effective)</th><th>Memory change (effective)</th></tr>';
         }
+
         $this->profilerService->iterateProfiles(function (Profile $profile) use (&$table): void {
             if (
                 ! $this->config[self::CONFIG_SHOW][self::CONFIG_SHOW_SHORT_PROFILES]
@@ -107,6 +114,7 @@ class ProfilerPanel implements IBarPanel
             ) {
                 return /* continue */;
             }
+
             if ($profile->meta[Profiler::START_LABEL] === $profile->meta[Profiler::FINISH_LABEL]) {
                 $labels = sprintf(
                     '<td colspan="2">%s</td>',
@@ -194,6 +202,7 @@ class ProfilerPanel implements IBarPanel
                 $colors['gridLines']
             );
         }
+
         for ($tmpX = $gridStep; $tmpX < $maxWidth; $tmpX += $gridStep) {
             $memoryChart .= sprintf(
                 '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-width="1" stroke="%s" />',
@@ -214,7 +223,7 @@ class ProfilerPanel implements IBarPanel
             static function (
                 $time,
                 $height,
-                $metaData
+                array $metaData
             ) use (
                 $colors,
                 &$memoryChart,
@@ -237,10 +246,12 @@ class ProfilerPanel implements IBarPanel
                     );
                     $firstIteration = false;
                 }
+
                 $thisX = floor(max(0, $time) / $metaData[ProfilerService::META_TIME_TOTAL] * $maxWidth);
                 if ($thisX === $prevX) {
                     return /* continue */;
                 }
+
                 $thisY = floor($maxHeight - $height * $maxHeight / 100);
                 $lines .= sprintf(
                     '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-width="1" stroke="%s" />',

@@ -18,7 +18,7 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
-if (! function_exists('tdie') && class_exists('\Tracy\Debugger')) {
+if (! function_exists('tdie') && class_exists(\Tracy\Debugger::class)) {
     /**
      * Tracy\Debugger::dump() die with backtrace shortcut.
      *
@@ -33,7 +33,7 @@ if (! function_exists('tdie') && class_exists('\Tracy\Debugger')) {
     }
 }
 
-if (! function_exists('ttimer') && class_exists('\Tracy\Debugger')) {
+if (! function_exists('ttimer') && class_exists(\Tracy\Debugger::class)) {
     /**
      * Tracy\Debugger::dump() set timer.
      *
@@ -41,7 +41,7 @@ if (! function_exists('ttimer') && class_exists('\Tracy\Debugger')) {
      *
      * @return float time
      */
-    function ttimer($var = ''): float
+    function ttimer(?string $var = ''): float
     {
         return \Tracy\Debugger::timer($var);
     }
@@ -94,6 +94,7 @@ if (! function_exists('cl')) {
 
                 break;
         }
+
         echo '</script>';
     }
 }

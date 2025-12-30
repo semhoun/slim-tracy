@@ -24,14 +24,10 @@ use Tracy\IBarPanel;
 
 class SlimRouterPanel implements IBarPanel
 {
-    private $routes;
-    private $ver;
-    private $icon;
+    private ?string $icon = null;
 
-    public function __construct($data = null, array $ver = [])
+    public function __construct(private $routes = null, private array $ver = [])
     {
-        $this->routes = $data;
-        $this->ver = $ver;
     }
 
     public function getTab(): string
@@ -82,6 +78,7 @@ class SlimRouterPanel implements IBarPanel
             foreach ($row as $cell) {
                 $cells[] = '<td>' . $cell . '</td>';
             }
+
             $rows[] = '<tr>' . implode('', $cells) . '</tr>';
         }
 
@@ -136,6 +133,6 @@ class SlimRouterPanel implements IBarPanel
 
     private function isAny($methods): bool
     {
-        return empty(array_diff(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], $methods));
+        return array_diff(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'], $methods) === [];
     }
 }

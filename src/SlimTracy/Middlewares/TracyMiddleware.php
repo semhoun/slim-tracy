@@ -52,26 +52,25 @@ use Tracy\Dumper;
  */
 class TracyMiddleware implements MiddlewareInterface
 {
-    private $container;
-    private $defcfg;
-    private $versions;
-    private $routeCollector;
+    private readonly ?\Psr\Container\ContainerInterface $container;
+
+    private array $versions = [
+        'slim' => App::VERSION,
+    ];
+
+    private readonly \Slim\Interfaces\RouteCollectorInterface $routeCollector;
 
     /**
      * @throws Exception
      */
     public function __construct(
         App $app,
-        array $settings
+        private array $defcfg
     ) {
         include_once realpath(__DIR__ . '/../') . '/shortcuts.php';
 
         $this->container = $app->getContainer();
-        $this->versions = [
-            'slim' => App::VERSION,
-        ];
-        $this->defcfg = $settings;
-        $this->container->set('tracy.settings', $settings);
+        $this->container->set('tracy.settings', $this->defcfg);
 
         $this->routeCollector = $app->getRouteCollector();
         $this->runCollectors();
@@ -82,11 +81,7 @@ class TracyMiddleware implements MiddlewareInterface
         $response = $handler->handle($request);
 
         $cookies = $request->getCookieParams();
-        if (isset($cookies['tracyPanelsEnabled'])) {
-            $cookies = json_decode($cookies['tracyPanelsEnabled']);
-        } else {
-            $cookies = [];
-        }
+        $cookies = isset($cookies['tracyPanelsEnabled']) ? json_decode($cookies['tracyPanelsEnabled']) : [];
 
         if (! empty($cookies)) {
             $def = array_fill_keys(array_keys($this->defcfg), null);
@@ -97,26 +92,29 @@ class TracyMiddleware implements MiddlewareInterface
         }
 
         // Remove ORM Panel Selectors if class not found
-        if (! class_exists('\Doctrine\DBAL\Connection')) {
+        if (! class_exists(\Doctrine\DBAL\Connection::class)) {
             unset($this->defcfg['showDoctrinePanel']);
         }
-        if (! class_exists('\Illuminate\Database\Capsule\Manager')) {
+
+        if (! class_exists(\Illuminate\Database\Capsule\Manager::class)) {
             unset($this->defcfg['showEloquentORMPanel']);
         }
-        if (!$this->defcfg['configs']['ConsoleEnable']) {
-             unset($this->defcfg['showConsolePanel']);
+
+        if (! $this->defcfg['configs']['ConsoleEnable']) {
+            unset($this->defcfg['showConsolePanel']);
         }
 
         if (
             isset($cfg['showEloquentORMPanel'])
             && $cfg['showEloquentORMPanel']
-            && class_exists('\Illuminate\Database\Capsule\Manager')
+            && class_exists(\Illuminate\Database\Capsule\Manager::class)
         ) {
             Debugger::getBar()->addPanel(new EloquentORMPanel(
                 Manager::getQueryLog(),
                 $this->versions
             ));
         }
+
         if (
             isset($cfg['showTwigPanel'])
             && $cfg['showTwigPanel']
@@ -128,15 +126,18 @@ class TracyMiddleware implements MiddlewareInterface
                 $this->versions
             ));
         }
+
         if (isset($cfg['showPhpInfoPanel']) && $cfg['showPhpInfoPanel']) {
             Debugger::getBar()->addPanel(new PhpInfoPanel());
         }
+
         if (isset($cfg['showSlimEnvironmentPanel']) && $cfg['showSlimEnvironmentPanel']) {
             Debugger::getBar()->addPanel(new SlimEnvironmentPanel(
                 Dumper::toHtml($request->getServerParams()),
                 $this->versions
             ));
         }
+
         if (isset($cfg['showSlimContainer']) && $cfg['showSlimContainer']) {
             Debugger::getBar()->addPanel(new SlimContainerPanel(
                 Dumper::toHtml($this->container),
@@ -157,23 +158,28 @@ class TracyMiddleware implements MiddlewareInterface
                 $this->versions
             ));
         }
+
         if (isset($cfg['showSlimResponsePanel']) && $cfg['showSlimResponsePanel']) {
             Debugger::getBar()->addPanel(new SlimResponsePanel(
                 Dumper::toHtml($response),
                 $this->versions
             ));
         }
+
         if (isset($cfg['showVendorVersionsPanel']) && $cfg['showVendorVersionsPanel']) {
             Debugger::getBar()->addPanel(new VendorVersionsPanel());
         }
+
         if (isset($cfg['showXDebugHelper']) && $cfg['showXDebugHelper']) {
             Debugger::getBar()->addPanel(new XDebugHelper(
                 $this->defcfg['configs']['XDebugHelperIDEKey']
             ));
         }
+
         if (isset($cfg['showIncludedFiles']) && $cfg['showIncludedFiles']) {
             Debugger::getBar()->addPanel(new IncludedFiles());
         }
+
         // check if enabled or blink if active critical value
         if (
             (isset($cfg['showConsolePanel']) && $cfg['showConsolePanel'])
@@ -184,15 +190,17 @@ class TracyMiddleware implements MiddlewareInterface
                 $this->defcfg['configs']
             ));
         }
+
         if (isset($cfg['showProfilerPanel']) && $cfg['showProfilerPanel']) {
             Debugger::getBar()->addPanel(new ProfilerPanel(
                 $this->defcfg['configs']['ProfilerPanel']
             ));
         }
+
         if (
             isset($cfg['showDoctrinePanel'])
             && $cfg['showDoctrinePanel']
-            && class_exists('\Doctrine\DBAL\Connection')
+            && class_exists(\Doctrine\DBAL\Connection::class)
             && $this->container->has('tracy.doctrineQueries')
         ) {
             Debugger::getBar()->addPanel(new DoctrinePanel(
@@ -202,9 +210,10 @@ class TracyMiddleware implements MiddlewareInterface
         }
 
         // hardcoded without config prevent switch off
-        if (! isset($this->defcfg) && ! is_array($this->defcfg)) {
+        if ($this->defcfg === null && ! is_array($this->defcfg)) {
             $this->defcfg = [];
         }
+
         Debugger::getBar()->addPanel(new PanelSelector(
             $cfg,
             array_diff_key($this->defcfg, ['configs' => null])
@@ -220,7 +229,7 @@ class TracyMiddleware implements MiddlewareInterface
     {
         if (
             isset($this->defcfg['showDoctrinePanel'])
-            && class_exists('\Doctrine\DBAL\Connection')
+            && class_exists(\Doctrine\DBAL\Connection::class)
             && isset($this->defcfg['configs']['Container']['Doctrine'])
             && $this->container->has($this->defcfg['configs']['Container']['Doctrine'])
         ) {

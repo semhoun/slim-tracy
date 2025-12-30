@@ -17,9 +17,13 @@ namespace SlimTracy\Helpers\Console;
 class BaseJsonRpcServer
 {
     protected const PARSEERROR = -32700;
+
     protected const INVALIDREQUEST = -32600;
+
     protected const METHODNOTFOUND = -32601;
+
     protected const INVALIDPARAMS = -32602;
+
     protected const INTERNALERROR = -32603;
 
     /**
@@ -113,7 +117,7 @@ class BaseJsonRpcServer
      *
      * @return $this
      */
-    public function registerInstance(object $instance, string $namespace = '')
+    public function registerInstance(object $instance, string $namespace = ''): static
     {
         $this->instances[$namespace] = $instance;
         if (is_object($this->instances[$namespace])) {
@@ -135,8 +139,9 @@ class BaseJsonRpcServer
 
     /**
      * Handle Requests.
+     * @return mixed[]
      */
-    public function execute()
+    public function execute(): array
     {
         $ret = [];
         do {
@@ -177,12 +182,10 @@ class BaseJsonRpcServer
                 $this->response = reset($this->response);
             }
 
-            if (! headers_sent()) {
-                // Allow Cross Domain Requests
-                if ($this->IsXDR) {
-                    header('Access-Control-Allow-Origin: *');
-                    header('Access-Control-Allow-Headers: x-requested-with, content-type');
-                }
+            // Allow Cross Domain Requests
+            if (!headers_sent() && $this->IsXDR) {
+                header('Access-Control-Allow-Origin: *');
+                header('Access-Control-Allow-Headers: x-requested-with, content-type');
             }
 
             $ret = $this->response;
@@ -208,8 +211,8 @@ class BaseJsonRpcServer
                 break;
             }
 
-            $request = ! empty($_GET['rawRequest']) ? $_GET['rawRequest'] : file_get_contents('php://input');
-            $this->request = json_decode($request, false);
+            $request = empty($_GET['rawRequest']) ? file_get_contents('php://input') : $_GET['rawRequest'];
+            $this->request = json_decode((string) $request, false);
             if ($this->request === null) {
                 $error = self::PARSEERROR;
 
@@ -258,8 +261,6 @@ class BaseJsonRpcServer
 
     /**
      * Check for jsonrpc version and correct method.
-     *
-     * @return array|null
      */
     private function validateCall(\stdClass $call): ?array
     {
@@ -275,10 +276,8 @@ class BaseJsonRpcServer
             }
 
             // hack for inputEx smd tester
-            if (property_exists($call, 'version')) {
-                if ($call->version === 'json-rpc-2.0') {
-                    $call->jsonrpc = '2.0';
-                }
+            if (property_exists($call, 'version') && $call->version === 'json-rpc-2.0') {
+                $call->jsonrpc = '2.0';
             }
 
             if (! property_exists($call, 'jsonrpc') || $call->jsonrpc !== '2.0') {
@@ -288,13 +287,13 @@ class BaseJsonRpcServer
             }
 
             $fullMethod = property_exists($call, 'method') ? $call->method : '';
-            $methodInfo = explode('.', $fullMethod, 2);
+            $methodInfo = explode('.', (string) $fullMethod, 2);
             $namespace = array_key_exists(1, $methodInfo) ? $methodInfo[0] : '';
-            $method = $namespace ? $methodInfo[1] : $fullMethod;
+            $method = $namespace !== '' && $namespace !== '0' ? $methodInfo[1] : $fullMethod;
             if (
                 ! $method || ! array_key_exists($namespace, $this->instances)
                 || ! method_exists($this->instances[$namespace], $method)
-                || in_array(strtolower($method), $this->hiddenMethods)
+                || in_array(strtolower((string) $method), $this->hiddenMethods)
             ) {
                 $error = self::METHODNOTFOUND;
 
@@ -362,7 +361,7 @@ class BaseJsonRpcServer
         } while (false);
 
         if ($error) {
-            $result = [$error, $id, $data];
+            return [$error, $id, $data];
         }
 
         return $result;
@@ -370,23 +369,21 @@ class BaseJsonRpcServer
 
     /**
      * Process Call.
-     *
-     * @return array|null
      */
     private function processCall(\stdClass $call): ?array
     {
         $id = property_exists($call, 'id') ? $call->id : null;
         $params = property_exists($call, 'params') ? $call->params : [];
         $result = null;
-        $namespace = strpos('.', $call->method) ? substr($call->method, 0, strpos($call->method, '.')) : '';
+        $namespace = strpos('.', (string) $call->method) ? substr((string) $call->method, 0, strpos((string) $call->method, '.')) : '';
 
         try {
             // set named parameters
             if (is_object($params)) {
                 $newParams = [];
-                foreach ($this->reflectionMethods[$call->method]->getParameters() as $param) {
-                    $paramName = $param->getName();
-                    $defaultValue = $param->isDefaultValueAvailable() ? $param->getDefaultValue() : null;
+                foreach ($this->reflectionMethods[$call->method]->getParameters() as $reflectionParameter) {
+                    $paramName = $reflectionParameter->getName();
+                    $defaultValue = $reflectionParameter->isDefaultValueAvailable() ? $reflectionParameter->getDefaultValue() : null;
                     $newParams[] = property_exists($params, $paramName) ? $params->{$paramName} : $defaultValue;
                 }
 
@@ -395,8 +392,8 @@ class BaseJsonRpcServer
 
             // invoke
             $result = $this->reflectionMethods[$call->method]->invokeArgs($this->instances[$namespace], $params);
-        } catch (\Exception $e) {
-            return $this->getError($e->getCode(), $id, $e->getMessage());
+        } catch (\Exception $exception) {
+            return $this->getError($exception->getCode(), $id, $exception->getMessage());
         }
 
         if (! $id && $id !== 0) {
@@ -417,12 +414,11 @@ class BaseJsonRpcServer
      */
     private function getDocDescription($comment): ?string
     {
-        $result = null;
-        if (preg_match('/\*\s+([^@]*)\s+/s', $comment, $matches)) {
-            $result = str_replace('*', "\n", trim(trim($matches[1], '*')));
+        if (preg_match('/\*\s+([^@]*)\s+/s', (string) $comment, $matches)) {
+            return str_replace('*', "\n", trim(trim($matches[1], '*')));
         }
 
-        return $result;
+        return null;
     }
 
     /**
@@ -436,8 +432,8 @@ class BaseJsonRpcServer
             'envelope' => 'JSON-RPC-2.0',
             'SMDVersion' => '2.0',
             'contentType' => 'application/json',
-            'target' => ! empty($_SERVER['REQUEST_URI']) ?
-                substr($_SERVER['REQUEST_URI'], 0, strpos($_SERVER['REQUEST_URI'], '?')) : '',
+            'target' => empty($_SERVER['REQUEST_URI']) ?
+                '' : substr((string) $_SERVER['REQUEST_URI'], 0, strpos((string) $_SERVER['REQUEST_URI'], '?')),
             'services' => [],
             'description' => '',
         ];
@@ -452,7 +448,11 @@ class BaseJsonRpcServer
 
             foreach ($rc->getMethods() as $method) {
                 /** @var \ReflectionMethod $method */
-                if (! $method->isPublic() || in_array(strtolower($method->getName()), $this->hiddenMethods)) {
+                if (! $method->isPublic()) {
+                    continue;
+                }
+
+                if (in_array(strtolower($method->getName()), $this->hiddenMethods)) {
                     continue;
                 }
 
@@ -496,7 +496,7 @@ class BaseJsonRpcServer
 
                 // set return type
                 if (preg_match('/@return\s+([^\s]+)\s*([^\n\*]+)/', $docComment, $matches)) {
-                    $returns = ['type' => $matches[1], 'description' => trim((string) $matches[2])];
+                    $returns = ['type' => $matches[1], 'description' => trim($matches[2])];
                     $result['services'][$methodName]['returns'] = array_filter($returns);
                 }
             }
@@ -510,7 +510,9 @@ class BaseJsonRpcServer
      */
     private function resetVars(): void
     {
-        $this->response = $this->calls = [];
-        $this->hasCalls = $this->isBatchCall = false;
+        $this->response = [];
+        $this->calls = [];
+        $this->hasCalls = false;
+        $this->isBatchCall = false;
     }
 }

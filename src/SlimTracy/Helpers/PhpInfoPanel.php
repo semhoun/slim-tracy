@@ -24,7 +24,7 @@ use Tracy\IBarPanel;
 
 class PhpInfoPanel implements IBarPanel
 {
-    private $icon;
+    private ?string $icon = null;
 
     public function getTab()
     {
@@ -61,11 +61,12 @@ class PhpInfoPanel implements IBarPanel
         // suppress warnings
         libxml_use_internal_errors(true);
 
-        $dom = new \DOMDocument();
-        $dom->loadHTML($phpInfo);
-        $body = $dom->getElementsByTagName('body')->item(0);
+        $domDocument = new \DOMDocument();
+        $domDocument->loadHTML($phpInfo);
+
+        $body = $domDocument->getElementsByTagName('body')->item(0);
         $this->removeElementsByTagName('img', $body);
-        $phpInfo = $dom->saveHTML($body);
+        $phpInfo = $domDocument->saveHTML($body);
 
         // http://php.net/manual/en/function.phpinfo.php#87287
         return '
@@ -96,7 +97,7 @@ class PhpInfoPanel implements IBarPanel
         </div>';
     }
 
-    private function removeElementsByTagName($tagName, $document): void
+    private function removeElementsByTagName(string $tagName, $document): void
     {
         $nodeList = $document->getElementsByTagName($tagName);
         for ($nodeIdx = $nodeList->length; --$nodeIdx >= 0;) {

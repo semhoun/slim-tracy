@@ -11,7 +11,7 @@ use Doctrine\DBAL\Driver\Statement as DriverStatement;
 
 final class Connection extends AbstractConnectionMiddleware
 {
-    public function __construct(ConnectionInterface $connection, private Queries $queries)
+    public function __construct(ConnectionInterface $connection, private readonly Queries $queries)
     {
         parent::__construct($connection);
     }
@@ -36,7 +36,7 @@ final class Connection extends AbstractConnectionMiddleware
         }
     }
 
-    public function exec(string $sql): int|string
+    public function exec(string $sql): int
     {
         $start = microtime(true);
         try {

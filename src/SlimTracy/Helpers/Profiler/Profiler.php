@@ -21,7 +21,7 @@ class Profiler extends AdvancedProfiler
     /**
      * {@inheritdoc}
      */
-    public static function enable($realUsage = false): void
+    public static function enable(mixed $realUsage = false): void
     {
         ProfilerService::init();
         parent::enable($realUsage);

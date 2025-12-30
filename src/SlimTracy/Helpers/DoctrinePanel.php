@@ -27,18 +27,19 @@ use Tracy\IBarPanel;
  */
 class DoctrinePanel implements IBarPanel
 {
-    private $ver;
-    private $icon;
-    private $parsed;
-    private $count;
-    private $time;
+    private ?string $icon = null;
 
-    public function __construct($logs = null, array $ver = [])
+    private readonly string $parsed;
+
+    private ?int $count = null;
+
+    private ?string $time = null;
+
+    public function __construct($logs = null, private array $ver = [])
     {
         $this->parsed = $this->parse(
             $logs
         );
-        $this->ver = $ver;
     }
 
     public function getTab()
@@ -86,15 +87,17 @@ class DoctrinePanel implements IBarPanel
         </div>';
     }
 
-    protected function parse($logs)
+    protected function parse($logs): string
     {
         $return = '<thead><tr><th>Cnt</th><th>Time (s)</th><th>SQL</th><th>Params</th><th>Types</th></tr></thead>';
         $baseRow = '<tr><td>%s</td><td>%s</td><td>%s</td><td><pre>%s</pre></td><td><pre>%s</pre></td></tr>';
-        $time = $cnt = 0;
+        $time = 0;
+        $cnt = 0;
         foreach ($logs as $log) {
             if (! isset($log['executionMS'])) {
                 continue;
             }
+
             $time += $log['executionMS'];
             $row = $baseRow;
             $return .= sprintf(
@@ -106,6 +109,7 @@ class DoctrinePanel implements IBarPanel
                 $this->transformType($log['types'])
             );
         }
+
         $this->count = $cnt;
         $this->time = number_format($time, 8);
 
@@ -120,6 +124,7 @@ class DoctrinePanel implements IBarPanel
         if (! is_array($data)) {
             return '';
         }
+
         $str = '';
         $idx = 1;
         foreach ($data as $entry) {
@@ -127,8 +132,10 @@ class DoctrinePanel implements IBarPanel
             if ($idx > 1) {
                 $str .= "\n";
             }
+
             $idx++;
         }
+
         return $str;
     }
 
@@ -140,6 +147,7 @@ class DoctrinePanel implements IBarPanel
         if (! is_array($data)) {
             return '';
         }
+
         $str = '';
         $idx = 1;
         foreach ($data as $entry) {
@@ -147,8 +155,10 @@ class DoctrinePanel implements IBarPanel
             if ($idx > 1) {
                 $str .= "\n";
             }
+
             $idx++;
         }
+
         return $str;
     }
 }

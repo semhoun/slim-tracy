@@ -24,17 +24,15 @@ use Tracy\IBarPanel;
 
 class EloquentORMPanel implements IBarPanel
 {
-    private $count;
-    private $data;
-    private $ver;
-    private $time;
-    private $icon;
+    private readonly int $count;
 
-    public function __construct($data = null, array $ver = [])
+    private int|float|null $time = null;
+
+    private ?string $icon = null;
+
+    public function __construct(private $data = null, private array $ver = [])
     {
-        $this->data = $data;
-        $this->ver = $ver;
-        $this->count = count($data);
+        $this->count = count($this->data);
     }
 
     public function getTab()
@@ -75,29 +73,31 @@ class EloquentORMPanel implements IBarPanel
         </div>';
     }
 
-    protected function getHeader()
+    protected function getHeader(): string
     {
         return '<thead><tr><th><b>Count</b></th><th><b>Time,&nbsp;ms</b></th><th>Query / Bindings</th></tr></thead>';
     }
 
-    protected function getBaseRow()
+    protected function getBaseRow(): string
     {
         return '<tr><td>%s</td><td>%s</td><td>%s</td></tr>';
     }
 
-    private function parse($data)
+    private function parse($data): string
     {
         $return = $this->getHeader();
-        $time = $cnt = 0;
+        $time = 0;
+        $cnt = 0;
         foreach ($data as $var) {
             $time += $var['time'];
             $row = $this->getBaseRow();
             $bind = '<span class="tracy-dump-hash"><hr />';
             if (! empty($var['bindings'])) {
                 foreach ($var['bindings'] as $k => $v) {
-                    $bind .= "[{$k} => {$v}]<br />";
+                    $bind .= sprintf('[%s => %s]<br />', $k, $v);
                 }
             }
+
             $return .= sprintf(
                 $row,
                 ++$cnt,
@@ -105,6 +105,7 @@ class EloquentORMPanel implements IBarPanel
                 $var['query'] . $bind . '</span>'
             );
         }
+
         $this->time = $time;
 
         return $return;

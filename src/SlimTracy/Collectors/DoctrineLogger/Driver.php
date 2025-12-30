@@ -10,7 +10,7 @@ use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
 
 final class Driver extends AbstractDriverMiddleware
 {
-    public function __construct(DriverInterface $driver, private Queries $queries)
+    public function __construct(DriverInterface $driver, private readonly Queries $queries)
     {
         parent::__construct($driver);
     }

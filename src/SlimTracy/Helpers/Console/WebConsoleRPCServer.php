@@ -27,11 +27,13 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     protected $homeDirectory = '';
 
     protected $noLogin = false;
+
     protected $accounts = [];
+
     protected $passwordHashAlgorithm = '';
 
     // Methods
-    public function login($user, $password)
+    public function login($user, $password): array
     {
         $result = ['token' => $this->authenticateUser($user, $password),
             'environment' => $this->getEnvironment(),
@@ -87,7 +89,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
 
         if (! empty($pattern)) {
             if (! is_dir($pattern)) {
-                $pattern = dirname($pattern);
+                $pattern = dirname((string) $pattern);
                 if ($pattern === '.') {
                     $pattern = '';
                 }
@@ -95,8 +97,9 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
 
             if (! empty($pattern)) {
                 if (is_dir($pattern)) {
-                    $scanPath = $completionPrefix = $pattern;
-                    if (substr($completionPrefix, -1) !== '/') {
+                    $scanPath = $pattern;
+                    $completionPrefix = $pattern;
+                    if (!str_ends_with((string) $completionPrefix, '/')) {
                         $completionPrefix .= '/';
                     }
                 }
@@ -113,18 +116,18 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
             natsort($completion);
 
             // Prefix
-            if (! empty($completionPrefix) && ! empty($completion)) {
+            if (! empty($completionPrefix) && $completion !== []) {
                 foreach ($completion as &$value) {
                     $value = $completionPrefix . $value;
                 }
             }
 
             // Pattern
-            if (! empty($pattern) && ! empty($completion)) {
+            if (! empty($pattern) && $completion !== []) {
                 // For PHP version that does not support anonymous functions (available since PHP 5.3.0)
-                function filterPattern($value, $pattern)
+                function filterPattern($value, $pattern): bool
                 {
-                    return ! strncmp($pattern, $value, strlen($pattern));
+                    return ! strncmp((string) $pattern, (string) $value, strlen((string) $pattern));
                 }
 
                 $completion = array_values(array_filter($completion, [$this, 'filterPattern']));
@@ -142,7 +145,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         }
 
         $output = $command && ! $this->isEmptyString($command) ? $this->executeCommand($command) : '';
-        if ($output && substr($output, -1) === "\n") {
+        if ($output && str_ends_with($output, "\n")) {
             $output = substr($output, 0, -1);
         }
 
@@ -150,27 +153,25 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     }
 
     // Authentication
-    protected function authenticateUser($user, $password)
+    protected function authenticateUser($user, $password): string
     {
         $user = trim((string) $user);
         $password = trim((string) $password);
 
-        if ($user && $password) {
-            if (isset($this->accounts[$user]) && ! $this->isEmptyString($this->accounts[$user])) {
-                if ($this->passwordHashAlgorithm) {
-                    $password = $this->getHash($this->passwordHashAlgorithm, $password);
-                }
+        if ($user && $password && (isset($this->accounts[$user]) && ! $this->isEmptyString($this->accounts[$user]))) {
+            if ($this->passwordHashAlgorithm) {
+                $password = $this->getHash($this->passwordHashAlgorithm, $password);
+            }
 
-                if ($this->isEqualStrings($password, $this->accounts[$user])) {
-                    return $user . ':' . $this->getHash('sha256', $password);
-                }
+            if ($this->isEqualStrings($password, $this->accounts[$user])) {
+                return $user . ':' . $this->getHash('sha256', $password);
             }
         }
 
         throw new IncorrectUserOrPassword();
     }
 
-    protected function authenticateToken($token)
+    protected function authenticateToken($token): true|string
     {
         if ($this->noLogin) {
             return true;
@@ -180,15 +181,13 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         $tokenParts = explode(':', $token, 2);
 
         if (count($tokenParts) === 2) {
-            $user = trim((string) $tokenParts[0]);
-            $passwordHash = trim((string) $tokenParts[1]);
+            $user = trim($tokenParts[0]);
+            $passwordHash = trim($tokenParts[1]);
 
-            if ($user && $passwordHash) {
-                if (isset($this->accounts[$user]) && ! $this->isEmptyString($this->accounts[$user])) {
-                    $realPasswordHash = $this->getHash('sha256', $this->accounts[$user]);
-                    if ($this->isEqualStrings($passwordHash, $realPasswordHash)) {
-                        return $user;
-                    }
+            if ($user && $passwordHash && (isset($this->accounts[$user]) && ! $this->isEmptyString($this->accounts[$user]))) {
+                $realPasswordHash = $this->getHash('sha256', $this->accounts[$user]);
+                if ($this->isEqualStrings($passwordHash, $realPasswordHash)) {
+                    return $user;
                 }
             }
         }
@@ -214,16 +213,16 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     }
 
     // Environment
-    protected function getEnvironment()
+    protected function getEnvironment(): array
     {
         $hostname = function_exists('gethostname') ? gethostname() : null;
 
         return ['path' => getcwd(), 'hostname' => $hostname];
     }
 
-    protected function setEnvironment($environment)
+    protected function setEnvironment($environment): array|false
     {
-        $environment = ! empty($environment) ? (array) $environment : [];
+        $environment = empty($environment) ? [] : (array) $environment;
         $path = isset($environment['path']) && ! $this->isEmptyString($environment['path']) ?
             $environment['path'] : $this->homeDirectory;
 
@@ -247,7 +246,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     }
 
     // Initialization
-    protected function initialize($token, $environment)
+    protected function initialize($token, $environment): array|false
     {
         $user = $this->authenticateToken($token);
         $this->homeDirectory = $this->getHomeDirectory($user);
@@ -261,7 +260,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     }
 
     // Command execution
-    private function executeCommand($command)
+    private function executeCommand(string $command): string|false
     {
         $descriptors = [
             0 => ['pipe', 'r'], // STDIN
@@ -286,7 +285,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         // All pipes must be closed before 'proc_close'
         $code = proc_close($process);
 
-        if (! empty($error)) {
+        if (! in_array($error, ['', '0', false], true)) {
             $output .= ', exit wit error:' . $error . ', code: ' . $code;
         }
 
@@ -294,18 +293,18 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
     }
 
     // Utilities
-    private function isEmptyString($string)
+    private function isEmptyString($string): bool
     {
-        return strlen($string) <= 0;
+        return strlen((string) $string) <= 0;
     }
 
-    private function isEqualStrings($string1, $string2)
+    private function isEqualStrings(string $string1, $string2): bool
     {
-        return strcmp($string1, $string2) === 0;
+        return strcmp($string1, (string) $string2) === 0;
     }
 
-    private function getHash($algorithm, $string)
+    private function getHash($algorithm, $string): string
     {
-        return hash($algorithm, trim((string) $string));
+        return hash((string) $algorithm, trim((string) $string));
     }
 }

@@ -27,19 +27,20 @@ use SlimTracy\Helpers\Console\WebConsoleRPCServer;
 
 class SlimTracyConsole extends WebConsoleRPCServer
 {
-    public function __construct(private ContainerInterface $ci)
+    public function __construct(private readonly ContainerInterface $container)
     {
         parent::__construct();
     }
 
     public function index(Request $request, Response $response): Response
     {
-        $cfg = $this->ci->get('tracy.settings')['configs'];
+        $cfg = $this->container->get('tracy.settings')['configs'];
 
         $this->noLogin = $cfg['ConsoleNoLogin'] ?: false;
         foreach ($cfg['ConsoleAccounts'] as $u => $p) {
             $this->accounts[$u] = $p;
         }
+
         $this->passwordHashAlgorithm = $cfg['ConsoleHashAlgorithm'] ?: '';
         $this->homeDirectory = $cfg['ConsoleHomeDirectory'] ?: '';
 

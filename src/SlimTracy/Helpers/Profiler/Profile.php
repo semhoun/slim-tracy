@@ -19,9 +19,13 @@ class Profile implements JsonSerializable
 {
     //region JSON keys
     protected const ABSOLUTE_DURATION = 'absolute_duration';
+
     protected const DURATION = 'duration';
+
     protected const ABSOLUTE_MEMORY_USAGE_CHANGE = 'absolute_memory_usage_change';
+
     protected const MEMORY_USAGE_CHANGE = 'memory_usage_change';
+
     //endregion
 
     public array $meta = [];

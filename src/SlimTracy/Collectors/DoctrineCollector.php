@@ -33,13 +33,13 @@ class DoctrineCollector
 
      * @throws Exception
      */
-    public function __construct(?Container $c = null, string $containerName = '')
+    public function __construct(?Container $container = null, string $containerName = '')
     {
-        if ($c === null || ! $c->has($containerName)) {
-            return 0;
+        if (!$container instanceof \Psr\Container\ContainerInterface || ! $container->has($containerName)) {
+            return;
         }
 
-        $conf = $c->get($containerName);
+        $conf = $container->get($containerName);
         if (! ($conf instanceof \Doctrine\DBAL\Configuration)) {
             throw new Exception('Neither Doctrine DBAL neither ORM Configuration not found');
         }
@@ -50,12 +50,10 @@ class DoctrineCollector
         $middlewares[] = new DoctrineLogger\Middleware($queries);
         $conf->setMiddlewares($middlewares);
 
-        if (method_exists($c, 'set')) {
-            $c->set('tracy.doctrineQueries', $queries);
+        if (method_exists($container, 'set')) {
+            $container->set('tracy.doctrineQueries', $queries);
         } else {
-            $c['tracy.doctrineQueries'] = $queries;
+            $container['tracy.doctrineQueries'] = $queries;
         }
-
-        return true;
     }
 }

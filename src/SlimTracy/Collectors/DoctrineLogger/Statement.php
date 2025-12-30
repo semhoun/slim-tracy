@@ -18,7 +18,7 @@ final class Statement extends AbstractStatementMiddleware
     private array $types = [];
 
     /** @internal This statement can be only instantiated by its connection. */
-    public function __construct(StatementInterface $statement, private Queries $queries, private string $sql)
+    public function __construct(StatementInterface $statement, private readonly Queries $queries, private readonly string $sql)
     {
         parent::__construct($statement);
     }
@@ -31,7 +31,7 @@ final class Statement extends AbstractStatementMiddleware
         parent::bindValue($param, $value, $type);
     }
 
-    public function execute(): ResultInterface
+    public function execute($params = null): ResultInterface
     {
         $start = microtime(true);
         try {

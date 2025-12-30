@@ -7,7 +7,7 @@ namespace SlimTracy\Collectors\DoctrineLogger;
 use Doctrine\DBAL\Driver as DriverInterface;
 use Doctrine\DBAL\Driver\Middleware as MiddlewareInterface;
 
-final class Middleware implements MiddlewareInterface
+final readonly class Middleware implements MiddlewareInterface
 {
     public function __construct(private Queries $queries)
     {

@@ -43,24 +43,17 @@ class AdvancedProfiler extends SimpleProfiler
      *
      * @return bool|string current "{file}#{line}" on success or false on failure
      */
-    public static function getCurrentFileHashLine(): bool|string
+    public static function getCurrentFileHashLine(...$args): bool|string
     {
-        $args = func_get_args();
-
         $deep = &$args[0];
 
         $backtrace = debug_backtrace();
-        $backtrace = &$backtrace[$deep ? $deep : 0];
-
-        if ($backtrace) {
-            return sprintf(
-                '%s#%s',
-                $backtrace['file'],
-                $backtrace['line']
-            );
-        }
-
-        return false;
+        $backtrace = &$backtrace[$deep ?: 0];
+        return sprintf(
+            '%s#%s',
+            $backtrace['file'],
+            $backtrace['line']
+        );
     }
 
     public static function start(?string $labelOrFormat = null, mixed $args = null): bool

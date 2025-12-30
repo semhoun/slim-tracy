@@ -25,14 +25,16 @@ use Tracy\IBarPanel;
 class ConsolePanel implements IBarPanel
 {
     protected $icon;
-    protected $cfg;
+
+
     protected $terminalJs;
+
     protected $terminalCss;
+
     protected $noLogin;
 
-    public function __construct(array $cfg = [])
+    public function __construct(protected array $cfg = [])
     {
-        $this->cfg = $cfg;
     }
 
     public function getTab()

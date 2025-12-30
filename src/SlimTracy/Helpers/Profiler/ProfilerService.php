@@ -12,14 +12,24 @@ class ProfilerService implements SingletonInterface
     use SingletonTrait;
 
     public const META_TIME_ZERO = 'meta_time_zero';
+
     public const META_TIME_TOTAL = 'meta_time_total';
+
     public const META_MEMORY_PEAK = 'meta_memory_peak';
+
     public const META_TIME_LINE = 'meta_time_line';
+
     public const META_TIME_LINE__MEMORY_USAGE = 'meta_time_line__memory_usage';
 
-    public const TIME_LINE_BEFORE = 'time_line_before'; // int [0 - 100] percentage
-    public const TIME_LINE_ACTIVE = 'time_line_active'; // int [0 - 100] percentage
-    public const TIME_LINE_INACTIVE = 'time_line_inactive'; // int [0 - 100] percentage
+    public const TIME_LINE_BEFORE = 'time_line_before';
+
+     // int [0 - 100] percentage
+    public const TIME_LINE_ACTIVE = 'time_line_active';
+
+     // int [0 - 100] percentage
+    public const TIME_LINE_INACTIVE = 'time_line_inactive';
+
+     // int [0 - 100] percentage
     public const TIME_LINE_AFTER = 'time_line_after'; // int [0 - 100] percentage
 
     /**
@@ -34,7 +44,7 @@ class ProfilerService implements SingletonInterface
 
     private function __construct()
     {
-        Profiler::setPostProcessor([$this, 'addProfile']);
+        Profiler::setPostProcessor($this->addProfile(...));
     }
 
     /**
@@ -98,17 +108,18 @@ class ProfilerService implements SingletonInterface
             $totalTime += $time;
             call_user_func($callback, $time, $height, $metaData);
         }
+
         if ($totalTime < $metaData[self::META_TIME_TOTAL]) {
             call_user_func($callback, $metaData[self::META_TIME_TOTAL] - $totalTime, $height, $metaData);
         }
     }
 
-    private function getMetaData()
+    private function getMetaData(): array
     {
-        if (empty($this->metaData)) {
+        if ($this->metaData === []) {
             $this->metaData[self::META_TIME_LINE] = [];
             $this->metaData[self::META_MEMORY_PEAK] = 0;
-            if (count($this->profiles) === 0) {
+            if ($this->profiles === []) {
                 $this->metaData[self::META_TIME_ZERO] = 0;
                 $timeEnd = 0;
             } else {
@@ -136,6 +147,7 @@ class ProfilerService implements SingletonInterface
                     ];
                 }
             }
+
             $this->metaData[self::META_TIME_TOTAL] = max($timeEnd - $this->metaData[self::META_TIME_ZERO], 0.001);
             ksort($this->metaData[self::META_TIME_LINE]);
         }

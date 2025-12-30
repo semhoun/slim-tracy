@@ -19,13 +19,27 @@ use SlimTracy\Helpers\Profiler\Exception\ProfilerException;
 class SimpleProfiler
 {
     //region Meta keys
-    public const START_LABEL = 'start_label'; // string
-    public const START_TIME = 'start_time'; // float start time in seconds
-    public const START_MEMORY_USAGE = 'start_memory_usage'; // int amount of used memory at start in bytes
-    public const FINISH_LABEL = 'finish_label'; // string
-    public const FINISH_TIME = 'finish_time'; // float finish time in seconds
-    public const FINISH_MEMORY_USAGE = 'finish_memory_usage'; // int amount of used memory at finish in bytes
-    public const TIME_OFFSET = 'time_offset'; // float time offset in seconds
+    public const START_LABEL = 'start_label';
+
+     // string
+    public const START_TIME = 'start_time';
+
+     // float start time in seconds
+    public const START_MEMORY_USAGE = 'start_memory_usage';
+
+     // int amount of used memory at start in bytes
+    public const FINISH_LABEL = 'finish_label';
+
+     // string
+    public const FINISH_TIME = 'finish_time';
+
+     // float finish time in seconds
+    public const FINISH_MEMORY_USAGE = 'finish_memory_usage';
+
+     // int amount of used memory at finish in bytes
+    public const TIME_OFFSET = 'time_offset';
+
+     // float time offset in seconds
     protected const MEMORY_USAGE_OFFSET = 'memory_usage_offset'; // int amount of memory usage offset in bytes
     //endregion
 
@@ -47,7 +61,7 @@ class SimpleProfiler
     public static function enable(mixed $realUsage = false): void
     {
         static::$enabled = true;
-        static::$realUsage = $realUsage ? true : false;
+        static::$realUsage = (bool) $realUsage;
     }
 
     /**
@@ -88,7 +102,7 @@ class SimpleProfiler
                 $label = $labelOrFormat;
             } else {
                 /** @noinspection SpellCheckingInspection */
-                $label = call_user_func_array('sprintf', func_get_args());
+                $label = call_user_func_array(sprintf(...), func_get_args());
             }
 
             $now = microtime(true);
@@ -104,7 +118,7 @@ class SimpleProfiler
                 self::START_MEMORY_USAGE => $memoryUsage,
             ];
 
-            array_push(static::$stack, $profile);
+            static::$stack[] = $profile;
 
             return true;
         }
@@ -128,7 +142,7 @@ class SimpleProfiler
 
             $memoryUsage = static::$realUsage ? memory_get_usage(true) : memory_get_usage();
 
-            if (empty(static::$stack)) {
+            if (static::$stack === []) {
                 throw new EmptyStackException('The stack is empty. Call ' . static::class . '::start() first.');
             }
 
@@ -136,7 +150,7 @@ class SimpleProfiler
                 $label = $labelOrFormat;
             } else {
                 /** @noinspection SpellCheckingInspection */
-                $label = call_user_func_array('sprintf', func_get_args());
+                $label = call_user_func_array(sprintf(...), func_get_args());
             }
 
             /** @var Profile $profile */
@@ -151,7 +165,7 @@ class SimpleProfiler
             $profile->memoryUsageChange = $profile->absoluteMemoryUsageChange -
                 $profile->meta[self::MEMORY_USAGE_OFFSET];
 
-            if (! empty(static::$stack)) {
+            if (static::$stack !== []) {
                 $timeOffset = &static::$stack[count(static::$stack) - 1]->meta[self::TIME_OFFSET];
                 $timeOffset += $profile->absoluteDuration;
 

@@ -24,7 +24,7 @@ use Tracy\IBarPanel;
 
 class IncludedFiles implements IBarPanel
 {
-    private $icon = '';
+    private string $icon = '';
 
     public function getTab()
     {
@@ -72,12 +72,12 @@ class IncludedFiles implements IBarPanel
         </div>';
     }
 
-    protected function getHeader()
+    protected function getHeader(): string
     {
         return '<thead><tr><th><b>Count</b></th><th>File</th></tr></thead>';
     }
 
-    protected function getBaseRow()
+    protected function getBaseRow(): string
     {
         return '<tr><td>%s</td><td>%s</td></tr>';
     }

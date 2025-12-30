@@ -29,13 +29,9 @@ use Tracy\IBarPanel;
 class PanelSelector implements IBarPanel
 {
     protected $icon;
-    private $cfg;
-    private $defcfg;
 
-    public function __construct(array $cfg = [], array $defcfg = [])
+    public function __construct(private array $cfg = [], private array $defcfg = [])
     {
-        $this->cfg = $cfg;
-        $this->defcfg = $defcfg;
     }
 
     public function getTab()
@@ -131,7 +127,7 @@ class PanelSelector implements IBarPanel
             <table width="100%">
                 <thead><tr><th>*Panels with asterisk are on by default</th></tr></thead>
                     <tr><th><input type="checkbox" onchange="toggleAllTracyPanels(this)" /> Toggle All</th></tr>';
-        foreach ($this->defcfg as $name => $val) {
+        foreach (array_keys($this->defcfg) as $name) {
             $out .= '<tr><td style="padding-left: 20px">
             <input type="checkbox" name="selectedPanels[]" ' .
                 (isset($this->cfg[$name]) && $this->cfg[$name] === 1 ? 'checked="checked"' : '') .
@@ -139,7 +135,8 @@ class PanelSelector implements IBarPanel
                 . ($this->defcfg[$name] === 1 ? '&nbsp;<strong>*</strong>' : '') . '
             </td></tr>';
         }
-        $out .= '
+
+        return $out . '
                 <tfoot>
                     <tr>
                         <td style="text-align: center">
@@ -150,11 +147,9 @@ class PanelSelector implements IBarPanel
                 </tfoot>
             </table>
         </div>';
-
-        return $out;
     }
 
-    private function formatPanelName($name = '')
+    private function formatPanelName(int|string $name = ''): ?string
     {
         return preg_replace('/[A-Z]{1,3}/', ' \0', str_replace('show', '', $name));
     }

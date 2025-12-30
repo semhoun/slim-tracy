@@ -24,16 +24,13 @@ use Tracy\IBarPanel;
 
 class TwigPanel implements IBarPanel
 {
-    private $data;
-    private $ver;
-    private $dumper;
-    private $icon;
+    private readonly \Twig\Profiler\Dumper\HtmlDumper $htmlDumper;
 
-    public function __construct($data = null, array $ver = [])
+    private ?string $icon = null;
+
+    public function __construct(private $data = null, private array $ver = [])
     {
-        $this->data = $data;
-        $this->ver = $ver;
-        $this->dumper = new \Twig\Profiler\Dumper\HtmlDumper();
+        $this->htmlDumper = new \Twig\Profiler\Dumper\HtmlDumper();
     }
 
     public function getTab()
@@ -99,7 +96,7 @@ class TwigPanel implements IBarPanel
             <p>
                 <table width="100%">
                     <thead><tr><th><b>Twig profiler result</b></th></tr></thead>
-                    <tr class="yes"><th><b>' . $this->dumper->dump($this->data) . '</b></th></tr>
+                    <tr class="yes"><th><b>' . $this->htmlDumper->dump($this->data) . '</b></th></tr>
                 </table>
             </p>
         </div>';

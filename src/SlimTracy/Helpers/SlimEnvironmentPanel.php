@@ -24,14 +24,10 @@ use Tracy\IBarPanel;
 
 class SlimEnvironmentPanel implements IBarPanel
 {
-    private $content;
-    private $ver;
-    private $icon;
+    private ?string $icon = null;
 
-    public function __construct($data = null, array $ver = [])
+    public function __construct(private $content = null, private array $ver = [])
     {
-        $this->content = $data;
-        $this->ver = $ver;
     }
 
     public function getTab()
