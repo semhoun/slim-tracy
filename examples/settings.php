@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Services\Settings;
 use Monolog\Logger;
+use Tracy\Debugger;
 
 $debug = getenv('DEBUG_MODE', true) === 'true';
 $docker = getenv('DOCKER_MODE', true) === 'true';
@@ -74,6 +75,8 @@ return [
         'showIncludedFiles' => 0,
         'showConsolePanel' => 0,
         'configs' => [
+            // Show bar (mainly for disable bar)
+            'ShowBar' => 1
             // XDebugger IDE key
             'XDebugHelperIDEKey' => 'PHPSTORM',
             // Activate the console
@@ -108,6 +111,12 @@ return [
                 'Doctrine' => \Doctrine\ORM\Configuration::class, // must be a configuration DBAL or ORM
                 'Twig' => \Twig\Profiler\Profile::class,
             ],
+            'Debugger' => [
+                // See \Tracy\Debugger::enable
+                'mode' => Debugger::Development,
+                'logDirectory' => null,
+                'email' => null
+            ]
         ],
     ],
 ];

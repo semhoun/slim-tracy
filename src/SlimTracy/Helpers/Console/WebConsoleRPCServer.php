@@ -51,7 +51,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         return $result;
     }
 
-    public function cd($token, $environment, $path)
+    public function cd($token, $environment, $path): array
     {
         $result = $this->initialize($token, $environment);
         if ($result) {
@@ -76,7 +76,10 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         return ['environment' => $this->getEnvironment()];
     }
 
-    public function completion($token, $environment, $pattern)
+    /**
+     * @return mixed[]
+     */
+    public function completion($token, $environment, $pattern): array
     {
         $result = $this->initialize($token, $environment);
         if ($result) {
@@ -99,7 +102,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
                 if (is_dir($pattern)) {
                     $scanPath = $pattern;
                     $completionPrefix = $pattern;
-                    if (!str_ends_with((string) $completionPrefix, '/')) {
+                    if (! str_ends_with((string) $completionPrefix, '/')) {
                         $completionPrefix .= '/';
                     }
                 }
@@ -137,7 +140,7 @@ class WebConsoleRPCServer extends BaseJsonRpcServer
         return ['completion' => $completion];
     }
 
-    public function run($token, $environment, $command)
+    public function run($token, $environment, $command): array
     {
         $result = $this->initialize($token, $environment);
         if ($result) {

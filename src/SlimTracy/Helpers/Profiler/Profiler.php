@@ -18,9 +18,6 @@ class Profiler extends AdvancedProfiler
      */
     protected static $postProcessor;
 
-    /**
-     * {@inheritdoc}
-     */
     public static function enable(mixed $realUsage = false): void
     {
         ProfilerService::init();

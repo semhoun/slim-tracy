@@ -139,7 +139,8 @@ class BaseJsonRpcServer
 
     /**
      * Handle Requests.
-     * @return mixed[]
+     *
+     * @return array<mixed>
      */
     public function execute(): array
     {
@@ -183,7 +184,7 @@ class BaseJsonRpcServer
             }
 
             // Allow Cross Domain Requests
-            if (!headers_sent() && $this->IsXDR) {
+            if (! headers_sent() && $this->IsXDR) {
                 header('Access-Control-Allow-Origin: *');
                 header('Access-Control-Allow-Headers: x-requested-with, content-type');
             }

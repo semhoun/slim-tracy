@@ -26,7 +26,6 @@ class ConsolePanel implements IBarPanel
 {
     protected $icon;
 
-
     protected $terminalJs;
 
     protected $terminalCss;

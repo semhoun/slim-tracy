@@ -21,22 +21,22 @@ class SimpleProfiler
     //region Meta keys
     public const START_LABEL = 'start_label';
 
-     // string
+    // string
     public const START_TIME = 'start_time';
 
-     // float start time in seconds
+    // float start time in seconds
     public const START_MEMORY_USAGE = 'start_memory_usage';
 
-     // int amount of used memory at start in bytes
+    // int amount of used memory at start in bytes
     public const FINISH_LABEL = 'finish_label';
 
-     // string
+    // string
     public const FINISH_TIME = 'finish_time';
 
-     // float finish time in seconds
+    // float finish time in seconds
     public const FINISH_MEMORY_USAGE = 'finish_memory_usage';
 
-     // int amount of used memory at finish in bytes
+    // int amount of used memory at finish in bytes
     public const TIME_OFFSET = 'time_offset';
 
      // float time offset in seconds

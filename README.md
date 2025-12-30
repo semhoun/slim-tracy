@@ -122,6 +122,7 @@ $capsule::connection()->enableQueryLog();
 ```
 
 **3.** register middleware
+If param {'configs']['Debugger'] is setted, also enable Tracy\Debugger.
 
 ```php
 $app->add(SlimTracy\Middlewares\TracyMiddleware($app, $tracySettings));
@@ -152,8 +153,6 @@ add jquery from local or from CDN (https://code.jquery.com/) or copy/paste
 ```php
 use Tracy\Debugger;
 
-Debugger::enable(Debugger::DEVELOPMENT);
-
 return [
     'settings' => [
                 'addContentLengthHeader' => false// debugbar possible not working with true
@@ -176,6 +175,8 @@ return [
             'showIncludedFiles' => 0,
             'showConsolePanel' => 0,
             'configs' => [
+                // Show bar (mainly for disable bar)
+                'ShowBar' => 1
                 // XDebugger IDE key
                 'XDebugHelperIDEKey' => 'PHPSTORM',
                  // Activate the console
@@ -209,6 +210,12 @@ return [
                 // Container entry name
                     'Doctrine' => \Doctrine\ORM\Configuration::class, // must be a configuration DBAL or ORM
                     'Twig' => \Twig\Profiler\Profile::class,
+                ],
+                'Debugger' => [
+                  // See \Tracy\Debugger::enable
+                  'mode' => Debugger::Development,
+                  'logDirectory' => null,
+                  'email' => null
                 ],
             ]
         ]

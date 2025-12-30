@@ -23,10 +23,10 @@ class ProfilerService implements SingletonInterface
 
     public const TIME_LINE_BEFORE = 'time_line_before';
 
-     // int [0 - 100] percentage
+    // int [0 - 100] percentage
     public const TIME_LINE_ACTIVE = 'time_line_active';
 
-     // int [0 - 100] percentage
+    // int [0 - 100] percentage
     public const TIME_LINE_INACTIVE = 'time_line_inactive';
 
      // int [0 - 100] percentage

@@ -69,6 +69,22 @@ class TracyMiddleware implements MiddlewareInterface
     ) {
         include_once realpath(__DIR__ . '/../') . '/shortcuts.php';
 
+        if (isset($defcfg['configs']['Debugger'])) {
+            Debugger::enable(
+                $defcfg['configs']['Debugger']['mode'] ?? null,
+                $defcfg['configs']['Debugger']['logDirectory'] ?? null,
+                $defcfg['configs']['Debugger']['email'] ?? null,
+            );
+        }
+
+        // Manage Bar visibility
+        if (isset($this->defcfg['configs']['ShowBar'])) {
+            Debugger::$showBar = ((int) $this->defcfg['configs']['ShowBar'] > 0);
+            if (! Debugger::$showBar) {
+                return;
+            }
+        }
+
         $this->container = $app->getContainer();
         $this->container->set('tracy.settings', $this->defcfg);
 
@@ -79,6 +95,10 @@ class TracyMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $response = $handler->handle($request);
+
+        if (! Debugger::$showBar) {
+            return $response;
+        }
 
         $cookies = $request->getCookieParams();
         $cookies = isset($cookies['tracyPanelsEnabled']) ? json_decode($cookies['tracyPanelsEnabled']) : [];

@@ -35,7 +35,7 @@ class DoctrineCollector
      */
     public function __construct(?Container $container = null, string $containerName = '')
     {
-        if (!$container instanceof \Psr\Container\ContainerInterface || ! $container->has($containerName)) {
+        if (! $container instanceof \Psr\Container\ContainerInterface || ! $container->has($containerName)) {
             return;
         }
 

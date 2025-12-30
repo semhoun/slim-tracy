@@ -92,7 +92,7 @@ class VendorVersionsPanel implements IBarPanel
     }
 
     /**
-     * @return (object{installed: string, required: mixed, url: (array | string | null)} & \stdClass)[]
+     * @return array<object{installed: string, required: mixed, url: array|string|null}&\stdClass>
      */
     private function format(array $packages, array $required): array
     {
