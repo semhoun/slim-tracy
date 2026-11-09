@@ -11,7 +11,7 @@ configure it by mouse
 
 ---
 
-![example](ss/tracy_panel.png "Tracy Panel")
+![Tracy Panel](ss/tracy_panel.png "Tracy Panel")
 
 now in package:
 
@@ -458,27 +458,27 @@ See [configuration examples](examples/settings.php) and
 snippets, not a runnable demo: they reference external `App\` services and
 configuration.
 
-![example](ss/panel_selector.png "Panel Selector")
+![Panel Selector](ss/panel_selector.png "Panel Selector")
 
-![example](ss/twig.png "Twig panel")
+![Twig panel](ss/twig.png "Twig panel")
 
-![example](ss/eloquent.png "Eloquent ORM panel")
+![Eloquent ORM panel](ss/eloquent.png "Eloquent ORM panel")
 
-![example](ss/container.png "Slim Container panel")
+![Slim Container panel](ss/container.png "Slim Container panel")
 
-![example](ss/request.png "Slim Request panel")
+![Slim Request panel](ss/request.png "Slim Request panel")
 
-![example](ss/response.png "Slim Response panel ")
+![Slim Response panel](ss/response.png "Slim Response panel")
 
-![example](ss/router.png "Slim Router panel ")
+![Slim Router panel](ss/router.png "Slim Router panel")
 
-![example](ss/vendor_versions_panel.png "Vendor Versions Panel")
+![Vendor Versions Panel](ss/vendor_versions_panel.png "Vendor Versions Panel")
 
-![example](ss/included_files.png "Included Files Panel")
+![Included Files Panel](ss/included_files.png "Included Files Panel")
 
-![example](ss/phpinfo.png "phpinfo Panel")
+![phpinfo Panel](ss/phpinfo.png "phpinfo Panel")
 
-![example](ss/console_panel.png "PTY Console Panel")
+![PTY Console Panel](ss/console_panel.png "PTY Console Panel")
 
 Profiler Example in
 [slim-skeleton-mvc](https://github.com/semhoun/slim-skeleton-mvc)
@@ -558,7 +558,7 @@ SlimTracy\Helpers\Profiler\Profiler::finish('App');
 
 ```
 
-![example](ss/profiler_panel.png "Profiler Panel")
+![Profiler Panel](ss/profiler_panel.png "Profiler Panel")
 
 ---
 
@@ -583,6 +583,28 @@ fixtures into temporary storage. They mount React and Vue, exercise real
 cross-origin fetch/XHR, and use a public Vue Devtools API test bridge. The
 bridge is not an installed Devtools extension test. Browser coverage uses
 Chromium, not every browser engine.
+
+### Refresh README screenshots
+
+The screenshots in `ss/` come from the local fixture in
+`tools/screenshots/app.php`, using the current library, Twig and in-memory
+SQLite queries. Install the Composer and npm dependencies above, then run:
+
+```bash
+curl -fsSL https://code.jquery.com/jquery-3.7.1.min.js -o /tmp/slim-tracy-jquery.js
+SCREENSHOT_JQUERY=/tmp/slim-tracy-jquery.js php -S 127.0.0.1:8790 tools/screenshots/app.php
+```
+
+In another terminal, from the repository root:
+
+```bash
+SCREENSHOT_JQUERY=/tmp/slim-tracy-jquery.js node tools/screenshots/capture.mjs
+```
+
+Set `CHROMIUM_PATH` to use a system Chromium instead of Playwright's browser.
+The script replaces all 13 images; long panels show their initial visible
+area. The console screenshot shows the login screen without executing shell
+commands. Stop the PHP server after capture.
 
 ## Credits
 
