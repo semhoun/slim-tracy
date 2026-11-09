@@ -25,6 +25,7 @@ jobs:
           node-version: '22'
           cache: npm
       - run: composer install --no-interaction --prefer-dist --no-progress
+      - run: npm install --global npm@11.19.1
       - run: npm ci
       - run: npm --prefix packages/ajax-profiler ci
       - run: npx playwright install --with-deps chromium
