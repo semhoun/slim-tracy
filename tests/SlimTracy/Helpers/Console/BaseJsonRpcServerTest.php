@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Copyright 2016 1f7.wizard@gmail.com
+ * Copyright 2016 1f7.wizard@gmail.com.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,76 +16,79 @@
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace Tests\SlimTracy\Helpers\Console;
 
-use Tests\BaseTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
 use SlimTracy\Helpers\Console\BaseJsonRpcServer;
 
-/**
- * Test BaseJsonRpcServer
- * @runTestsInSeparateProcesses
- * Class BaseJsonRpcServerTest
- * @package Tests\SlimTracy\Helpers\Console
- */
-class BaseJsonRpcServerTest extends BaseTestCase
+/** Verifies JSON-RPC envelopes, transport metadata, and batch request isolation. */
+final class BaseJsonRpcServerTest extends TestCase
 {
-    public function testBaseJsonRpcServerWithFakeQuery()
+    /** Verify malformed requests return the expected JSON-RPC error envelope. */
+    #[DataProvider('invalidRequests')]
+    public function testInvalidRequestsReturnJsonRpcErrors(string $request, int $code): void
     {
-        $s = new BaseJsonRpcServer();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $s);
-
-        // fake execute
-        $ret = $s->execute();
-        $this->assertEquals('2.0', $ret['jsonrpc']);
-        $this->assertNull($ret['id']);
-        $this->assertEquals(-32700, $ret['error']['code']);
-        $this->assertEquals('Parse error', $ret['error']['message']);
-        $this->assertNull($ret['error']['data']);
+        $response = (new BaseJsonRpcServer())->execute($request);
+        self::assertSame('2.0', $response['jsonrpc']);
+        self::assertSame($code, $response['error']['code']);
+        self::assertNull($response['id']);
     }
 
-    public function testBaseJsonRpcServerGetServiceMap()
+    /** Supply malformed JSON and invalid JSON-RPC envelopes. */
+    public static function invalidRequests(): array
     {
-        $s = new BaseJsonRpcServer();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $s);
-
-        $ret = $this->callProtectedMethod('getServiceMap', '\SlimTracy\Helpers\Console\BaseJsonRpcServer', []);
-        $this->assertEquals('POST', $ret['transport']);
-        $this->assertEquals('JSON-RPC-2.0', $ret['envelope']);
-        $this->assertEquals('2.0', $ret['SMDVersion']);
-        $this->assertEquals('application/json', $ret['contentType']);
-        $this->assertEquals('', $ret['target']);
-        $this->assertEquals([], $ret['services']);
-        $this->assertEquals('', $ret['description']);
+        return [
+            'malformed' => ['{', -32700],
+            'empty input' => ['', -32700],
+            'empty batch' => ['[]', -32600],
+            'null' => ['null', -32600],
+            'number' => ['42', -32600],
+            'string' => ['"request"', -32600],
+            'boolean' => ['true', -32600],
+            'missing version' => ['{}', -32600],
+            'missing method' => ['{"jsonrpc":"2.0"}', -32601],
+            'invalid method type' => ['{"jsonrpc":"2.0","method":[]}', -32601],
+        ];
     }
 
-    public function testBaseJsonRpcServerGetDocDescription()
+    /** Verify discovery reports its explicit HTTP and JSON-RPC transport metadata. */
+    public function testTransportMetadataIsExplicit(): void
     {
-        $s = new BaseJsonRpcServer();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $s);
-
-        $rc = new \ReflectionClass($s);
-
-        $ret = $this->callProtectedMethod(
-            'getDocDescription',
-            '\SlimTracy\Helpers\Console\BaseJsonRpcServer',
-            [$rc->getDocComment(), 'test']
-        );
-        $this->assertRegexp('/JSON RPC Server/s', $ret);
+        $server = new BaseJsonRpcServer();
+        self::assertSame(-32600, $server->execute('{}', 'GET')['error']['code']);
+        $map = $server->execute(serviceMap: true, target: '/console');
+        self::assertSame('POST', $map['transport']);
+        self::assertSame('JSON-RPC-2.0', $map['envelope']);
+        self::assertSame('2.0', $map['SMDVersion']);
+        self::assertSame('application/json', $map['contentType']);
+        self::assertSame('/console', $map['target']);
+        self::assertSame([], $map['services']);
+        self::assertSame('', $map['description']);
     }
 
-    public function testBaseJsonRpcServerRegisterInstance()
+    /** Reject a nonpositive maximum batch size. */
+    public function testInvalidBatchConfigurationIsRejected(): void
     {
-        $s = new BaseJsonRpcServer();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $s);
+        $this->expectException(\InvalidArgumentException::class);
+        new BaseJsonRpcServer(maxBatchCalls: 0);
+    }
 
-        $s->registerInstance($s, 'Self');
-        $ret = $s->registerInstance($s, 'OneMore');
-        $this->assertArrayHasKey('Self', $ret->getInstances());
-        $this->assertArrayHasKey('OneMore', $ret->getInstances());
-
-        $_GET['smd'] = 'bla-bla';
-        $ret = $s->execute();
-        $this->assertNotEmpty($ret['services']);
-        $this->assertCount(2, $ret['services']);
+    /** Verify notifications and subsequent requests never retain previous responses. */
+    public function testBatchesNotificationsAndConsecutiveRequestsHaveNoSharedState(): void
+    {
+        $service = new RpcTestService();
+        $server = new BaseJsonRpcServer($service, maxBatchCalls: 2);
+        $response = $server->execute('[{"jsonrpc":"2.0","method":"add","params":[2],"id":1},'
+            . '{"jsonrpc":"2.0","method":"add","params":[4]}]');
+        self::assertSame([['jsonrpc' => '2.0', 'result' => 3, 'id' => 1]], $response);
+        self::assertSame([], $server->execute('{"jsonrpc":"2.0","method":"add","params":[4]}'));
+        self::assertSame([], $server->execute('[{"jsonrpc":"2.0","method":"add","params":[4]}]'));
+        self::assertSame(-32600, $server->execute('[{},{},{}]')['error']['code']);
+        self::assertSame('2.0', $server->execute('{')['jsonrpc']);
+        self::assertSame(8, $server->execute('{"jsonrpc":"2.0","method":"add","params":[7],"id":2}')['result']);
+        self::assertSame(5, $service->calls);
     }
 }

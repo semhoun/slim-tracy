@@ -18,27 +18,29 @@
 
 namespace Tests\SlimTracy\Helpers;
 
+use SlimTracy\Helpers\ComposerDocument;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class VendorVersionsPanelTest
  * @package Tests\SlimTracy\Helpers
  */
 class VendorVersionsPanelTest extends BaseTestCase
 {
+    /** Verify a panel without a project path still renders its identity. */
     public function testVendorVersionsPanel()
     {
         $panel = new \SlimTracy\Helpers\VendorVersionsPanel();
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('/Vendor Versions/s', $panel->getTab());
+        $this->assertMatchesRegularExpression('/Vendor Versions/s', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('/VendorVersionsPanel/s', $panel->getPanel());
+        $this->assertMatchesRegularExpression('/VendorVersionsPanel/s', $panel->getPanel());
         unset($panel);
     }
 
+    /** Verify package data is rendered consistently across repeated calls. */
     public function testVendorVersionsPanelWithData()
     {
         $path = realpath(__DIR__ . '/../../../');
@@ -46,9 +48,12 @@ class VendorVersionsPanelTest extends BaseTestCase
         $panel = new \SlimTracy\Helpers\VendorVersionsPanel($path);
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
-        $this->assertRegexp('/phpunit\/php-code-coverage/s', $panel->getPanel());
+        $this->assertMatchesRegularExpression('/phpunit\/php-code-coverage/s', $panel->getPanel());
+        $this->assertSame($panel->getPanel(), $panel->getPanel());
+        $this->assertFalse(function_exists('h'));
     }
 
+    /** Verify directory validation reports missing projects and lock files. */
     public function testVendorVersionsPanelComposerDirectory()
     {
         // normal path, error empty
@@ -69,6 +74,11 @@ class VendorVersionsPanelTest extends BaseTestCase
         $this->assertStringEndsWith('does not contain the composer.lock file.', $panel->getError());
     }
 
+    /**
+     * Exercise the static Composer document reader with valid and malformed fixtures.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testVendorVersionsPanelDecode()
     {
         // normal file
@@ -76,29 +86,32 @@ class VendorVersionsPanelTest extends BaseTestCase
         $jsonFile = $path . DIRECTORY_SEPARATOR . 'testComposer.json';
         $lockFile = $path . DIRECTORY_SEPARATOR . 'testComposer.lock';
 
-        $result = $this->callProtectedMethod('decode', '\SlimTracy\Helpers\VendorVersionsPanel', [$jsonFile]);
+        $result = ComposerDocument::read($jsonFile)['data'];
         $this->assertArrayHasKey('description', $result);
-        $this->assertArraySubset(['keywords' => []], $result);
+        $this->assertArrayHasKey('keywords', $result);
+        $this->assertIsArray($result['keywords']);
 
-        $result = $this->callProtectedMethod('decode', '\SlimTracy\Helpers\VendorVersionsPanel', [$lockFile]);
+        $result = ComposerDocument::read($lockFile)['data'];
         $this->assertArrayHasKey('_readme', $result);
-        $this->assertArraySubset(['packages' => []], $result);
+        $this->assertArrayHasKey('packages', $result);
+        $this->assertIsArray($result['packages']);
 
         // fake file with Syntax error
         $path = realpath(__DIR__ . '/../../../tests/');
         $jsonFile = $path . DIRECTORY_SEPARATOR . 'testFake.json';
-        $result = $this->callProtectedMethodReturnObj('decode', '\SlimTracy\Helpers\VendorVersionsPanel', [$jsonFile]);
-        $this->assertNull($result[1]);
-        $this->assertStringStartsWith('Syntax error', $result[0]->getError());
+        $result = ComposerDocument::read($jsonFile);
+        $this->assertSame([], $result['data']);
+        $this->assertStringStartsWith('Syntax error', $result['error']);
     }
 
+    /** Verify a missing optional Composer document returns no data or error. */
     public function testVendorVersionsPanelDecodeWarning()
     {
         // no file
         $path = realpath(__DIR__ . '/../../../tests/');
         $jsonFile = $path . DIRECTORY_SEPARATOR . 'zzzWWW.json';
 
-        $result = $this->callProtectedMethod('decode', '\SlimTracy\Helpers\VendorVersionsPanel', [$jsonFile]);
-        $this->assertNull($result);
+        $result = ComposerDocument::read($jsonFile);
+        $this->assertSame(['data' => [], 'error' => null], $result);
     }
 }

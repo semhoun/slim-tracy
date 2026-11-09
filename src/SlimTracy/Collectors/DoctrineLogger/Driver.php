@@ -8,8 +8,10 @@ use Doctrine\DBAL\Driver as DriverInterface;
 use Doctrine\DBAL\Driver\Connection as DriverConnection;
 use Doctrine\DBAL\Driver\Middleware\AbstractDriverMiddleware;
 
+/** Decorate DBAL connections with the shared query collector. */
 final class Driver extends AbstractDriverMiddleware
 {
+    /** Retain the underlying driver and the collector shared by its connections. */
     public function __construct(DriverInterface $driver, private readonly Queries $queries)
     {
         parent::__construct($driver);

@@ -6,16 +6,21 @@ namespace SlimTracy\Collectors\DoctrineLogger;
 
 use Doctrine\DBAL\ParameterType;
 
+/** Retain executed SQL, bound values, driver types and elapsed seconds for reporting. */
 final class Queries
 {
+    /**
+     * @var list<array{sql: string, params: array<array-key, scalar|array|object|resource|null>|null,
+     *     types: array<ParameterType>|null, executionMS: float}>
+     */
     private array $queries = [];
 
     /**
      * Logs a SQL statement somewhere.
      *
      * @param string $sql SQL statement
-     * @param list<mixed>|array<string, mixed>|null $params Statement parameters
-     * @param ?array<ParameterType> $types
+     * @param array<array-key, scalar|array|object|resource|null>|null $params Driver values, including LOB streams.
+     * @param ?array<ParameterType> $types DBAL types associated with the bound driver values.
      */
     public function addQuery(
         float $duration,
@@ -31,6 +36,10 @@ final class Queries
         ];
     }
 
+    /**
+     * @return list<array{sql: string, params: array<array-key, scalar|array|object|resource|null>|null,
+     *     types: array<ParameterType>|null, executionMS: float}>
+     */
     public function getQueries(): array
     {
         return $this->queries;

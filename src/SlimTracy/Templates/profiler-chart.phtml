@@ -1,0 +1,46 @@
+<?php
+
+use SlimTracy\Helpers\Profiler\ProfilerService;
+
+$margin = 3;
+$width = 594;
+$height = 84;
+$line = static fn (float $x1, float $y1, float $x2, float $y2, string $color): string => sprintf(
+    '<line x1="%d" y1="%d" x2="%d" y2="%d" stroke-width="1" stroke="%s" />',
+    $x1, $y1, $x2, $y2, $color
+);
+?>
+<!--suppress HtmlUnknownAttribute -->
+<svg style="width: 600px; height: 90px" viewBox="0 0 600 90" xmlns="http://www.w3.org/2000/svg">
+<?php
+for ($y = $height; $y > 0; $y -= 10) {
+    print $line($margin, $y + $margin, $width + $margin, $y + $margin, '#cccccc');
+}
+for ($x = 10; $x < $width; $x += 10) {
+    print $line($x + $margin, $margin, $x + $margin, $height + $margin, '#cccccc');
+}
+$state = ['label' => '', 'x' => 0, 'y' => $height, 'lines' => '', 'points' => ''];
+$profilerService->iterateMemoryTimeLine(
+    static function (float $time, float $percentage, array $meta) use (&$state, $width, $height, $margin, $line): void {
+        if ($state['label'] === '') {
+            $state['label'] = sprintf('<text x="%d" y="%d" font-size="%d">%d kB</text>',
+                $margin * 2, 5 + $margin * 2, 10, floor($meta[ProfilerService::META_MEMORY_PEAK] / 1024));
+        }
+        $x = floor(max(0, $time) / $meta[ProfilerService::META_TIME_TOTAL] * $width);
+        $y = floor($height - $percentage * $height / 100);
+        if ($x === $state['x']) {
+            return;
+        }
+        $state['lines'] .= $line($state['x'] + $margin, $state['y'] + $margin,
+            $x + $margin, $y + $margin, '#6ba9e6');
+        $state['points'] .= $line($x + $margin, $y + $margin - 3, $x + $margin, $y + $margin + 3, '#3987d4')
+            . $line($x + $margin - 3, $y + $margin, $x + $margin + 3, $y + $margin, '#3987d4');
+        $state['x'] = $x;
+        $state['y'] = $y;
+    }
+);
+print $state['label'] . $state['lines'] . $state['points'];
+print $line($margin, $height + $margin, $width + $margin, $height + $margin, '#000000');
+print $line($margin, $margin, $margin, $height + $margin, '#000000');
+?>
+</svg>

@@ -13,42 +13,37 @@ namespace SlimTracy\Helpers\Profiler;
  *
  * @license  https://github.com/petrknap/php-profiler/blob/master/LICENSE MIT
  */
-class AdvancedProfiler extends SimpleProfiler
+abstract class AdvancedProfiler extends SimpleProfiler
 {
+    /** Whether caller-labelled profiling currently accepts measurements. */
     protected static bool $enabled = false;
 
-    /**
-     * @var array<Profile>
-     */
-    protected static array $stack = [];
+    /** Nested measurements and result processing for this profiler. */
+    protected static ProfilingSession $session;
 
     /**
-     * @var callable
-     */
-    protected static $postProcessor;
-
-    /**
-     * Set post processor.
+     * Enable a profiling session with an optional result processor.
      *
      * Post processor is callable with one input argument (return from finish method)
      * and is called at the end of finish method.
      */
-    public static function setPostProcessor(callable $postProcessor): void
+    public static function enable(bool $realUsage = false, ?callable $postProcessor = null): void
     {
-        static::$postProcessor = $postProcessor;
+        parent::enable($realUsage);
+        static::$session = new ProfilingSession($postProcessor);
     }
 
     /**
      * Get current "{file}#{line}".
      *
+     * The first argument selects the backtrace depth (defaults to zero).
+     *
      * @return bool|string current "{file}#{line}" on success or false on failure
      */
-    public static function getCurrentFileHashLine(...$args): bool|string
+    public static function getCurrentFileHashLine(int $depth = 0): string
     {
-        $deep = &$args[0];
-
-        $backtrace = debug_backtrace();
-        $backtrace = &$backtrace[$deep ?: 0];
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS);
+        $backtrace = $backtrace[$depth];
         return sprintf(
             '%s#%s',
             $backtrace['file'],
@@ -56,37 +51,15 @@ class AdvancedProfiler extends SimpleProfiler
         );
     }
 
-    public static function start(?string $labelOrFormat = null, mixed $args = null): bool
+    /** Start a measurement, using the caller location when no label is supplied. */
+    public static function start(?string $labelOrFormat = null, mixed ...$args): bool
     {
-        if (static::$enabled) {
-            if ($labelOrFormat === null) {
-                $labelOrFormat = static::getCurrentFileHashLine(1);
-                $args = null;
-            }
-
-            return parent::start($labelOrFormat, $args);
-        }
-
-        return false;
+        return parent::start($labelOrFormat ?? static::getCurrentFileHashLine(1), ...$args);
     }
 
-    public static function finish(?string $labelOrFormat = null, mixed $args = null): Profile|bool
+    /** Complete the current measurement, defaulting its label to the caller location. */
+    public static function finish(?string $labelOrFormat = null, mixed ...$args): Profile|false
     {
-        if (static::$enabled) {
-            if ($labelOrFormat === null) {
-                $labelOrFormat = static::getCurrentFileHashLine(1);
-                $args = null;
-            }
-
-            $profile = parent::finish($labelOrFormat, $args);
-
-            if (static::$postProcessor === null) {
-                return $profile;
-            }
-
-            return call_user_func(static::$postProcessor, $profile);
-        }
-
-        return false;
+        return parent::finish($labelOrFormat ?? static::getCurrentFileHashLine(1), ...$args);
     }
 }

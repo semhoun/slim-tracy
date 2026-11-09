@@ -1,0 +1,30 @@
+<?php
+
+declare(strict_types=1);
+
+return static function (array $view): string {
+    ob_start();
+?>
+
+        <style>
+            #tracy-debug-panel-SlimTracy-Helpers-SlimRouterPanel {max-width: 1440px !important}
+        </style>
+        <h1><?= $view['icon'] ?> Slim <?= $view['ver']['slim'] ?> Router:</h1>
+        <div class="tracy-inner">
+                <table>
+                    <tr class="yes">
+                        <th><b>Id</b></th>
+                        <th><b>Name</b></th>
+                        <th><b>Pattern</b></th>
+                        <th><b>Methods</b></th>
+                        <th><b>Callable</b></th>
+                        <th><b>Arguments</b></th>
+                    </tr><?php foreach ($view['rows'] as $row): ?><tr><?php
+foreach ($row as $cell): ?><td><?= $cell ?></td><?php endforeach;
+?></tr><?php endforeach; ?>
+
+                </table>
+
+        </div><?php
+    return (string) ob_get_clean();
+};

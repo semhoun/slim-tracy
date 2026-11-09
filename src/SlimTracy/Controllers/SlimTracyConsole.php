@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,48 +16,39 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Controllers;
 
 use Psr\Container\ContainerInterface;
-use Psr\Http\Message\RequestInterface as Request;
 use Psr\Http\Message\ResponseInterface as Response;
-use SlimTracy\Helpers\Console\WebConsoleRPCServer;
+use Psr\Http\Message\ServerRequestInterface as Request;
+use SlimTracy\Controllers\Support\ConsoleOutput;
+use SlimTracy\Controllers\Support\ConsoleTransport;
 
-class SlimTracyConsole extends WebConsoleRPCServer
+/** Adapts an explicit PSR-7 request to the console's JSON-RPC transport. */
+final readonly class SlimTracyConsole
 {
-    public function __construct(private readonly ContainerInterface $container)
+    /** Use the host container to resolve the console's Tracy configuration. */
+    public function __construct(private ContainerInterface $container)
     {
-        parent::__construct();
     }
 
+    /**
+     * Execute JSON-RPC using the stateless request and output adapters.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function index(Request $request, Response $response): Response
     {
-        $cfg = $this->container->get('tracy.settings')['configs'];
-
-        $this->noLogin = $cfg['ConsoleNoLogin'] ?: false;
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $this->accounts[$u] = $p;
-        }
-
-        $this->passwordHashAlgorithm = $cfg['ConsoleHashAlgorithm'] ?: '';
-        $this->homeDirectory = $cfg['ConsoleHomeDirectory'] ?: '';
-
-        $ConsoleResponse = $this->execute();
-
-        if ($cfg['ConsoleFromEncoding'] && $cfg['ConsoleFromEncoding'] !== 'UTF-8') {
-            $ConsoleResponse['result']['output'] = mb_convert_encoding(
-                $ConsoleResponse['result']['output'],
-                'UTF-8',
-                $cfg['ConsoleFromEncoding']
-            );
-        }
-
+        $config = $this->container->get('tracy.settings')['configs'];
+        $result = ConsoleTransport::execute($request, $config);
+        $output = ConsoleOutput::convert($result, (string) ($config['ConsoleFromEncoding'] ?? ''));
         $response = $response->withHeader('Content-Type', 'application/json');
+        $response = $response->withHeader('Access-Control-Allow-Origin', '*');
+        $response = $response->withHeader('Access-Control-Allow-Headers', 'x-requested-with, content-type');
         $response->getBody()->write(
-            (string) json_encode(
-                $ConsoleResponse,
-                JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR
-            )
+            (string) json_encode($output, JSON_UNESCAPED_SLASHES | JSON_PARTIAL_OUTPUT_ON_ERROR)
         );
         return $response;
     }

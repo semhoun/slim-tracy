@@ -1,0 +1,36 @@
+<?php
+
+declare(strict_types=1);
+
+return static function (array $view): string {
+    ob_start();
+?>
+
+            <style>
+                #tracy-debug-panel-SlimTracy-Helpers-PhpInfoPanel {max-width: 940px !important}
+                .tracy-inner {max-width: 940px !important}
+                #phpinfo pre {margin: 0; font-family: monospace;}
+                #phpinfo a:link {color: #009; text-decoration: none; background-color: #fff;}
+                #phpinfo a:hover {text-decoration: underline;}
+                #phpinfo table {border-collapse: collapse; border: 0; width: 900px; box-shadow: 1px 2px 3px #ccc;}
+                #phpinfo .center {text-align: center;}
+                #phpinfo .center table {margin: 1em auto; text-align: left; width:100% !important;}
+                #phpinfo .center th {text-align: center !important;}
+                #phpinfo td, th {color: #111 !important; padding: 4px 5px;}
+                #phpinfo h1 {font-size: 175%; max-width: 935px !important}
+                #phpinfo h2 {font-size: 160%;}
+                #phpinfo .p {text-align: left;}
+                #phpinfo .e {background-color: #ccf !important; width: 300px; font-weight: bold; }
+                #phpinfo .h th {background-color: #99c !important; font-weight: bold; }
+                #phpinfo .v {background-color: #ddd !important; max-width: 300px; word-wrap: break-word;}
+                #phpinfo .v i {color: #999 !important; }
+                #phpinfo img {float: right; border: 0;}
+                #phpinfo hr {background-color: #ccc; border: 0; height: 1px;}
+            </style>
+        <h1><?= $view['icon'] ?> PHP Info</h1>
+        <div class="tracy-inner">
+            <div id="phpinfo"><?= $view['phpInfo'] ?></div>
+        </div>
+<?php
+    return (string) ob_get_clean();
+};

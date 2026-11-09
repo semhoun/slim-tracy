@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,9 +16,12 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Exceptions;
 
-class IncorrectUserOrPassword extends \Exception
+/** Report that the console credentials did not match a configured account. */
+final class IncorrectUserOrPassword extends \Exception
 {
     // Empty class
 }

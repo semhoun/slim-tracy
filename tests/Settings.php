@@ -21,9 +21,8 @@ use Tracy\Debugger;
 date_default_timezone_set('UTC');
 
 defined('DS') || define('DS', DIRECTORY_SEPARATOR);
-defined('DIR') || define('DIR', realpath(__DIR__ . '/../../') . DS);
+defined('DIR') || define('DIR', dirname(__DIR__) . DS);
 
-Debugger::enable(Debugger::DEVELOPMENT, '/tmp');
 //Debugger::enable(Debugger::PRODUCTION, DIR . 'var/log');
 
 return [
@@ -104,6 +103,8 @@ return [
             'showIncludedFiles' => 0,
             'showConsolePanel' => 0,
             'configs' => [
+                'ConsoleEnable' => true,
+                'Container' => ['Twig' => 'twig_profile', 'Doctrine' => 'doctrine.config'],
                 // XDebugger IDE key
                 'XDebugHelperIDEKey' => 'PHPSTORM',
                 // Disable login (don't ask for credentials, be careful) values( 1 || 0 )
@@ -123,7 +124,7 @@ return [
                 'ConsoleTerminalCss' => '/assets/css/jquery.terminal.min.css',
                 'ConsoleFromEncoding' => 'CP866', // or false
                 'ProfilerPanel' => [
-                    // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(1)
+                    // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(true)
 //                    'primaryValue' =>                   'effective',    // or 'absolute'
                     'show' => [
                         'memoryUsageChart' => 1, // or false

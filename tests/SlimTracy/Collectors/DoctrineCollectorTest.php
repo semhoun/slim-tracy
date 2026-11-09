@@ -1,187 +1,124 @@
 <?php
 
-/**
- * Copyright 2017 1f7.wizard@gmail.com
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+namespace Tests\SlimTracy\Collectors;
 
-namespace Tests\SlimTracy\Controllers;
-
-use Tests\BaseTestCase;
+use DI\Container;
+use Doctrine\DBAL\Configuration;
+use Doctrine\DBAL\DriverManager;
+use Doctrine\DBAL\ParameterType;
+use Doctrine\ORM\EntityManager;
+use Doctrine\ORM\Mapping\Driver\AttributeDriver;
 use SlimTracy\Collectors\DoctrineCollector;
+use SlimTracy\Collectors\DoctrineLogger\Queries;
+use Tests\BaseTestCase;
 
-/**
- * @runTestsInSeparateProcesses
- * Class DoctrineCollectorTest
- * @package Tests\SlimTracy\Controllers
- */
+/** Verifies optional Doctrine registration and DBAL query capture. */
 class DoctrineCollectorTest extends BaseTestCase
 {
-    public function testDoctrineCollector()
+    /** Verify missing optional configuration leaves the container unchanged. */
+    public function testMissingContainerOrServiceDoesNotRegisterCollector(): void
     {
-        $app = new \Slim\App();
-        $c = $app->getContainer();
-
-        $collector = new DoctrineCollector();
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isFalse($collector);
-
-        // with container and fake doctrine container name. also false
-        $collector = new DoctrineCollector($c, 'fake');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isFalse($collector);
+        $this->assertInstanceOf(DoctrineCollector::class, new DoctrineCollector());
+        $container = new Container();
+        new DoctrineCollector($container, 'missing');
+        $this->assertFalse($container->has('tracy.doctrineQueries'));
     }
 
-    public function testDoctrineCollectorDBALreturnQueryBuilder()
+    /**
+     * Use DBAL's public static connection factory to exercise the middleware chain.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function testCollectorPreservesExistingMiddlewaresAndLogsDbalQueries(): void
     {
-        $app = new \Slim\App();
-        $c = $app->getContainer();
+        $container = new Container();
+        $configuration = new Configuration();
+        $existing = $this->createMock(\Doctrine\DBAL\Driver\Middleware::class);
+        $existing->method('wrap')->willReturnArgument(0);
+        $configuration->setMiddlewares([$existing]);
+        $container->set('config', $configuration);
+        new DoctrineCollector($container, 'config');
 
-        $c['dbal'] = function () {
-            $conn = \Doctrine\DBAL\DriverManager::getConnection(
-                $this->getDoctrineDBALConfig(),
-                new \Doctrine\DBAL\Configuration()
+        $this->assertSame($existing, $configuration->getMiddlewares()[0]);
+        $this->assertCount(2, $configuration->getMiddlewares());
+        $queries = $container->get('tracy.doctrineQueries');
+        $this->assertInstanceOf(Queries::class, $queries);
+
+        $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
+        $this->assertSame(42, $connection->fetchOne('SELECT ?', [42], [ParameterType::INTEGER]));
+        $logged = $queries->getQueries();
+        $this->assertCount(1, $logged);
+        $query = array_values($logged)[0];
+        $this->assertSame('SELECT ?', $query['sql']);
+        $this->assertContains(42, $query['params']);
+        $this->assertGreaterThanOrEqual(0, $query['executionMS']);
+    }
+
+    /**
+     * Use DBAL's public static factory to verify bound resources remain intact.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function testCollectorPreservesBoundLobResources(): void
+    {
+        $container = new Container();
+        $configuration = new Configuration();
+        $container->set('config', $configuration);
+        new DoctrineCollector($container, 'config');
+        $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
+        $stream = fopen('php://memory', 'w+');
+        fwrite($stream, 'binary payload');
+        rewind($stream);
+
+        try {
+            $result = $connection->fetchOne(
+                'SELECT ?',
+                [$stream],
+                [ParameterType::LARGE_OBJECT]
             );
-            // return DBAL\Query\QueryBuilder
-            return $conn->createQueryBuilder();
-        };
-        $this->assertInstanceOf('\Doctrine\DBAL\Query\QueryBuilder', $c->get('dbal'));
-
-        // also false
-        $collector = new DoctrineCollector($c, 'fake');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isFalse($collector);
-
-        // must true
-        $collector = new DoctrineCollector($c, 'dbal');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isTrue($collector);
-        $this->assertInstanceOf('\Doctrine\DBAL\Configuration', $c['doctrineConfig']);
+            $this->assertSame('binary payload', $result);
+            $queries = $container->get('tracy.doctrineQueries')->getQueries();
+            $this->assertCount(1, $queries);
+            $params = array_values($queries[0]['params']);
+            $this->assertSame($stream, $params[0]);
+            $this->assertIsResource($params[0]);
+            $this->assertContains(ParameterType::LARGE_OBJECT, $queries[0]['types']);
+        } finally {
+            fclose($stream);
+        }
     }
 
-    public function testDoctrineCollectorDBALreturnConnection()
+    /**
+     * Use DBAL's public static factory with a shared ORM configuration.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function testCollectorAcceptsSharedOrmConfiguration(): void
     {
-        $app = new \Slim\App();
-        $c = $app->getContainer();
-
-        $c['dbal'] = function () {
-            $conn = \Doctrine\DBAL\DriverManager::getConnection(
-                $this->getDoctrineDBALConfig(),
-                new \Doctrine\DBAL\Configuration()
-            );
-            // return DBAL\Connection
-            return $conn;
-        };
-        $this->assertInstanceOf('\Doctrine\DBAL\Connection', $c->get('dbal'));
-
-        // must true
-        $collector = new DoctrineCollector($c, 'dbal');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isTrue($collector);
-        $this->assertInstanceOf('\Doctrine\DBAL\Configuration', $c['doctrineConfig']);
+        $configuration = new \Doctrine\ORM\Configuration();
+        $configuration->setMetadataDriverImpl(new AttributeDriver([]));
+        $configuration->setProxyDir(sys_get_temp_dir());
+        $configuration->setProxyNamespace('Tests\\Proxies');
+        $container = new Container();
+        $container->set('orm.config', $configuration);
+        new DoctrineCollector($container, 'orm.config');
+        $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
+        $manager = new EntityManager($connection, $configuration);
+        $this->assertSame(7, $manager->getConnection()->fetchOne('SELECT 7'));
+        $this->assertCount(1, $container->get('tracy.doctrineQueries')->getQueries());
     }
 
-    public function testDoctrineCollectorORMreturnEntityManager()
+    /**
+     * A connection from DBAL's static factory is not a configuration service.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function testCollectorRejectsConnectionInsteadOfConfiguration(): void
     {
-        $cfg = require __DIR__ . '/../../Settings.php';
-        $app = new \Slim\App($cfg);
-        $c = $app->getContainer();
-
-        // return EntityManager
-        $c['em'] = function ($c) {
-            $settings = $c->get('settings');
-            $config = \Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(
-                $settings['doctrine']['meta']['entity_path'],
-                $settings['doctrine']['meta']['auto_generate_proxies'],
-                $settings['doctrine']['meta']['proxy_dir'],
-                $settings['doctrine']['meta']['cache'],
-                false
-            );
-            return \Doctrine\ORM\EntityManager::create($settings['doctrine']['connection'], $config);
-        };
-        $this->assertInstanceOf('\Doctrine\ORM\EntityManager', $c->get('em'));
-
-        // must true
-        $collector = new DoctrineCollector($c, 'em');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isTrue($collector);
-        $this->assertInstanceOf('\Doctrine\DBAL\Configuration', $c['doctrineConfig']);
-    }
-
-    public function testDoctrineCollectorORMreturnQueryBuilder()
-    {
-        $cfg = require __DIR__ . '/../../Settings.php';
-        $app = new \Slim\App($cfg);
-        $c = $app->getContainer();
-
-        // return ORM QueryBuilder
-        $c['em'] = function ($c) {
-            $settings = $c->get('settings');
-            $config = \Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(
-                $settings['doctrine']['meta']['entity_path'],
-                $settings['doctrine']['meta']['auto_generate_proxies'],
-                $settings['doctrine']['meta']['proxy_dir'],
-                $settings['doctrine']['meta']['cache'],
-                false
-            );
-            $em = \Doctrine\ORM\EntityManager::create($settings['doctrine']['connection'], $config);
-            return $em->createQueryBuilder();
-        };
-        $this->assertInstanceOf('\Doctrine\ORM\QueryBuilder', $c->get('em'));
-
-        // must true
-        $collector = new DoctrineCollector($c, 'em');
-        $this->assertInstanceOf('\SlimTracy\Collectors\DoctrineCollector', $collector);
-        $this->isTrue($collector);
-        $this->assertInstanceOf('\Doctrine\DBAL\Configuration', $c['doctrineConfig']);
-    }
-
-    public function testDoctrineCollectorException()
-    {
-        $cfg = require __DIR__ . '/../../Settings.php';
-        // Instantiate the application
-        $app = new \Slim\App($cfg);
-        $c = $app->getContainer();
-
-        // no return. expect exeption 'Neither Doctrine DBAL neither ORM not found'
-        $c['em'] = function ($c) {
-            $settings = $c->get('settings');
-            $config = \Doctrine\ORM\Tools\Setup::createAnnotationMetadataConfiguration(
-                $settings['doctrine']['meta']['entity_path'],
-                $settings['doctrine']['meta']['auto_generate_proxies'],
-                $settings['doctrine']['meta']['proxy_dir'],
-                $settings['doctrine']['meta']['cache'],
-                false
-            );
-            $em = \Doctrine\ORM\EntityManager::create($settings['doctrine']['connection'], $config);
-            $em->createQueryBuilder();
-        };
-
-        $this->expectExceptionMessage('Neither Doctrine DBAL neither ORM not found');
-        $collector = new DoctrineCollector($c, 'em');
-    }
-
-    protected function getDoctrineDBALConfig()
-    {
-        return [
-            'driver' => 'pdo_mysql',
-            'host' => '127.0.0.1',
-            'user' => 'dbuser',
-            'password' => '123',
-            'dbname' => 'bookshelf',
-            'port' => 3306,
-            'charset' => 'utf8',
-        ];
+        $container = new Container();
+        $container->set('dbal', DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true]));
+        $this->expectException(\Exception::class);
+        $this->expectExceptionMessage('Neither Doctrine DBAL neither ORM Configuration not found');
+        new DoctrineCollector($container, 'dbal');
     }
 }

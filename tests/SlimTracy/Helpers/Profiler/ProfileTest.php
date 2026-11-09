@@ -24,26 +24,34 @@ use SlimTracy\Helpers\Profiler\Profile;
  * Class ProfileTest
  * @package Tests\SlimTracy\Helpers\Profiler
  */
-class ProfileTest extends \PHPUnit_Framework_TestCase
+#[\PHPUnit\Framework\Attributes\CoversClass(Profile::class)]
+class ProfileTest extends \PHPUnit\Framework\TestCase
 {
-    /**
-     * @covers \SlimTracy\Helpers\Profiler\Profile
-     */
+    /** Verify explicit measurements take precedence over similarly named metadata. */
     public function testProfile()
     {
-        $p = new Profile();
+        $profile = new Profile(['label' => 'request', 'duration' => 999], 0.05, 0.03, 640, 1024);
+        $this->assertSame(0.05, $profile->absoluteDuration());
+        $this->assertSame(0.03, $profile->duration());
+        $this->assertSame(640, $profile->absoluteMemoryUsageChange());
+        $this->assertSame(1024, $profile->memoryUsageChange());
+        $this->assertSame(['label' => 'request', 'duration' => 999], $profile->metadata());
+        $this->assertSame([
+            'label' => 'request',
+            'duration' => 0.03,
+            'absolute_duration' => 0.05,
+            'absolute_memory_usage_change' => 640,
+            'memory_usage_change' => 1024,
+        ], $profile->jsonSerialize());
+        $this->assertSame($profile->jsonSerialize(), json_decode(json_encode($profile, JSON_THROW_ON_ERROR), true));
+    }
 
-        $this->assertInstanceOf('\SlimTracy\Helpers\Profiler\Profile', $p);
-        $this->assertTrue(empty($p->meta));
-
-        // fill meta
-        $p->absoluteDuration = 0.05;
-        $p->duration = 0.03;
-        $p->absoluteMemoryUsageChange = 640;
-        $p->memoryUsageChange = 1024;
-
-        $p->meta = $p->jsonSerialize();
-//        fwrite(STDERR, '$p->meta: ' . print_r($p->meta) . " ###\n");
-        $this->assertFalse(empty($p->meta));
+    /** Verify modifying returned metadata cannot change the profile's own state. */
+    public function testMetadataReadDoesNotExposeMutableState(): void
+    {
+        $profile = new Profile(['label' => 'original']);
+        $metadata = $profile->metadata();
+        $metadata['label'] = 'changed';
+        $this->assertSame(['label' => 'original'], $profile->metadata());
     }
 }

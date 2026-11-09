@@ -1,0 +1,40 @@
+{
+  "name": "@slim-tracy/ajax-profiler",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Development-only Slim Tracy fetch/XHR profiler and optional Vue Devtools adapter",
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./index.js",
+    "./vue": "./vue.js"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "client.cjs",
+    "vue.js"
+  ],
+  "scripts": {
+    "build": "node scripts/assets.mjs",
+    "check:assets": "node scripts/assets.mjs --check",
+    "format": "prettier --write client.cjs panel.cjs index.js vue.js scripts/*.mjs test/*.js package.json package-lock.json && npm run build",
+    "check:format": "prettier --check client.cjs panel.cjs index.js vue.js scripts/*.mjs test/*.js package.json package-lock.json",
+    "test": "node --test && npm run check:assets"
+  },
+  "peerDependencies": {
+    "@vue/devtools-api": ">=6.6.4 <7"
+  },
+  "peerDependenciesMeta": {
+    "@vue/devtools-api": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@vue/devtools-api": "6.6.4",
+    "prettier": "3.9.10"
+  },
+  "license": "Apache-2.0"
+}

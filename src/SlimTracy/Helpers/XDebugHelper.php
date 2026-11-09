@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,27 +16,41 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
-class XDebugHelper implements IBarPanel
+/** Renders Xdebug session controls for the configured IDE key. */
+final readonly class XDebugHelper implements IBarPanel
 {
-    public function __construct(protected $ideKey = 'PHPSTORM')
+    /**
+     * Configures the IDE session identifier used by the controls.
+     *
+     * @param string $ideKey IDE key supplied when starting an Xdebug session.
+     */
+    public function __construct(private string $ideKey = 'PHPSTORM')
     {
     }
 
-    public function getPanel()
+    /**
+     * Declares that the helper has no expandable panel.
+     *
+     * @return false Keeps the Xdebug helper limited to toolbar controls.
+     */
+    public function getPanel(): false
     {
         return false;
     }
 
-    public function getTab()
+    /**
+     * Renders the Xdebug session controls.
+     *
+     * @return string Toolbar HTML configured with the IDE session key.
+     */
+    public function getTab(): string
     {
-        ob_start();
-
-        require __DIR__ . '../../Templates/xdebug-helper.tab.phtml';
-
-        return ob_get_clean();
+        return (require __DIR__ . '/../Templates/xdebug-helper.tab.phtml')(['ideKey' => $this->ideKey]);
     }
 }

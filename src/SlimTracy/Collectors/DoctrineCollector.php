@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2017 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Collectors;
 
 use Exception;
@@ -26,7 +26,7 @@ use Psr\Container\ContainerInterface as Container;
 /**
  * Class DoctrineCollector.
  */
-class DoctrineCollector
+final readonly class DoctrineCollector
 {
     /*
      * DoctrineCollector constructor

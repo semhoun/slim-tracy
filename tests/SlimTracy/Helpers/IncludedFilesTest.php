@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class IncludedFilesTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -33,8 +32,8 @@ class IncludedFilesTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Included Files#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Included Files#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Included Files:#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Included Files:#', $panel->getPanel());
     }
 }

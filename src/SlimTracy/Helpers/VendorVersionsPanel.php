@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,118 +16,82 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
-class VendorVersionsPanel implements IBarPanel
+/** Displays installed Composer packages and requested version constraints. */
+final class VendorVersionsPanel implements IBarPanel
 {
-    private ?string $error = null;
+    /**
+     * @var string|null Most recent Composer directory or document error.
+     */
+    private ?string $error;
 
-    private $dir;
+    /**
+     * @var string|null Resolved directory containing Composer project files.
+     */
+    private readonly ?string $dir;
 
-    public function __construct($composerLockDir = null)
+    /**
+     * Resolves the Composer project directory for package inspection.
+     *
+     * ComposerDirectory is a stateless resolver with a public static API.
+     *
+     * @param string|null $composerLockDir Explicit project directory, or null for discovery.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function __construct(?string $composerLockDir = null)
     {
-        if ($composerLockDir === null || ! is_string($composerLockDir)) {
-            $composerLockDir = realpath(__DIR__ . '/../../../../../../');
-        }
-
-        if (! is_dir($dir = realpath($composerLockDir))) {
-            $this->error = 'Path "' . $composerLockDir . '" is not a directory.';
-        } elseif (! is_file($dir . \DIRECTORY_SEPARATOR . 'composer.lock')) {
-            $this->error = sprintf("Directory '%s' does not contain the composer.lock file.", $dir);
-        } else {
-            $this->dir = $dir;
-        }
-    }
-
-    public function getTab()
-    {
-        return '
-        <span title="Vendor Versions">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 512" width="16" height="16">
-                <path fill="#478CCC" d="M489.349,131.258l0.47-0.462L374.228,15.515l-32.895,32.894l65.485,65.47c-29.' .
-            '182,11.174-49.97,39.258-49.97,72.303  c0,42.818,34.758,77.576,77.575,77.576c11.016,0,21.576-2.326,' .
-            '31.03-6.516V480.97c0,17.061-13.97,31.03-31.03,31.03  s-31.03-13.97-31.03-31.03V341.333c0-34.287-27.' .
-            '772-62.061-62.061-62.061h-31.03V62.061C310.303,27.772,282.53,0,248.242,0H62.061  C27.772,0,0,27.772,' .
-            '0,62.061v496.485h310.303V325.818h46.546V480.97c0,42.818,34.758,77.576,77.575,77.576  c42.818,0,77.' .
-            '576-34.758,77.576-77.576V186.182C512,164.772,503.303,145.379,489.349,131.258z M248.242,217.' .
-            '212H62.061V62.061  h186.182V217.212z M434.424,217.212c-17.061,0-31.03-13.962-31.03-31.03s13.97-31.03,' .
-            '31.03-31.03s31.03,13.962,31.03,31.03  S451.484,217.212,434.424,217.212z"/>
-            </svg>
-        </span>';
-    }
-
-    public function getPanel()
-    {
-        ob_start();
-
-        $jsonFile = $this->dir . \DIRECTORY_SEPARATOR . 'composer.json';
-        $lockFile = $this->dir . \DIRECTORY_SEPARATOR . 'composer.lock';
-
-        if ($this->error === null) {
-            $required = array_filter($this->decode($jsonFile));
-            $installed = array_filter($this->decode($lockFile));
-            $required += ['require' => [], 'require-dev' => []];
-            $installed += ['packages' => [], 'packages-dev' => []];
-            $data = [
-                'Packages' => $this->format($installed['packages'], $required['require']),
-                'Dev Packages' => $this->format($installed['packages-dev'], $required['require-dev']),
-            ];
-        }
-
-        $error = $this->error;
-
-        require __DIR__ . '../../Templates/VendorVersionsPanel.phtml';
-
-        return ob_get_clean();
-    }
-
-    // test case
-    public function getError(): ?string
-    {
-        return $this->error;
+        $resolved = ComposerDirectory::resolve($composerLockDir);
+        $this->dir = $resolved['directory'];
+        $this->error = $resolved['error'];
     }
 
     /**
-     * @return array<object{installed: string, required: mixed, url: array|string|null}&\stdClass>
+     * Renders the package-version toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the Composer package panel.
      */
-    private function format(array $packages, array $required): array
+    public function getTab(): string
     {
-        $data = [];
-        foreach ($packages as $package) {
-            $data[$package['name']] = (object) [
-                'installed' => $package['version'] . ($package['version'] === 'dev-master'
-                        ? ' #' . substr((string) $package['source']['reference'], 0, 7)
-                        : ''),
-
-                'required' => $required[$package['name']]
-                    ?? null,
-
-                'url' => isset($package['source']['url'])
-                    ? preg_replace('/\.git$/', '', $package['source']['url'])
-                    : null,
-            ];
-        }
-
-        ksort($data);
-
-        return $data;
+        return (require __DIR__ . '/../Templates/VendorTab.phtml')([]);
     }
 
-    private function decode(string $file): ?array
+    /**
+     * Loads package versions and renders their requested constraints.
+     *
+     * ComposerProject exposes stateless project loading through its public static API.
+     *
+     * @return string Package table HTML including any project-loading error.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function getPanel(): string
     {
-        if (! is_file($file)) {
-            return null;
-        }
+        $jsonFile = $this->dir . \DIRECTORY_SEPARATOR . 'composer.json';
+        $lockFile = $this->dir . \DIRECTORY_SEPARATOR . 'composer.lock';
+        $project = ComposerProject::load($this->dir, $this->error);
+        $this->error = $project['error'];
 
-        $decoded = json_decode(file_get_contents($file), true);
-        if (! is_array($decoded)) {
-            $this->error = json_last_error_msg();
+        return (require __DIR__ . '/../Templates/VendorVersionsPanel.phtml')(
+            $project['packages'],
+            $this->error,
+            $jsonFile,
+            $lockFile
+        );
+    }
 
-            return null;
-        }
-
-        return $decoded;
+    /**
+     * Exposes the most recent project-loading error.
+     *
+     * @return string|null Error message, or null when project loading succeeded.
+     */
+    public function getError(): ?string
+    {
+        return $this->error;
     }
 }

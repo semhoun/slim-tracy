@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace SlimTracy\Helpers\Profiler;
 
-use SlimTracy\Helpers\Profiler\Exception\EmptyStackException;
 use SlimTracy\Helpers\Profiler\Exception\ProfilerException;
 
 /**
@@ -16,7 +15,7 @@ use SlimTracy\Helpers\Profiler\Exception\ProfilerException;
  *
  * @license  https://github.com/petrknap/php-profiler/blob/master/LICENSE MIT
  */
-class SimpleProfiler
+abstract class SimpleProfiler
 {
     //region Meta keys
     public const START_LABEL = 'start_label';
@@ -45,10 +44,8 @@ class SimpleProfiler
 
     protected static bool $enabled = false;
 
-    /**
-     * @var array<Profile>
-     */
-    protected static array $stack = [];
+    /** Nested measurements for the current enabled session. */
+    protected static ProfilingSession $session;
 
     /**
      * memory_get_usage.
@@ -58,10 +55,11 @@ class SimpleProfiler
     /**
      * Enable profiler.
      */
-    public static function enable(mixed $realUsage = false): void
+    public static function enable(bool $realUsage = false): void
     {
+        static::$session = new ProfilingSession();
         static::$enabled = true;
-        static::$realUsage = (bool) $realUsage;
+        static::$realUsage = $realUsage;
     }
 
     /**
@@ -91,34 +89,26 @@ class SimpleProfiler
     /**
      * Start profiling.
      *
-     * @param mixed  $args          [optional]
+     * Additional arguments are forwarded unchanged to sprintf when present.
      *
      * @return bool true on success or false on failure
      */
-    public static function start(?string $labelOrFormat = null, mixed $args = null): bool
+    public static function start(?string $labelOrFormat = null, mixed ...$args): bool
     {
         if (static::$enabled) {
-            if ($args === null) {
-                $label = $labelOrFormat;
-            } else {
-                /** @noinspection SpellCheckingInspection */
-                $label = call_user_func_array(sprintf(...), func_get_args());
-            }
-
             $now = microtime(true);
 
-            $memoryUsage = static::$realUsage ? memory_get_usage(true) : memory_get_usage();
+            $memoryUsage = memory_get_usage(static::$realUsage);
 
-            $profile = new Profile();
-            $profile->meta = [
-                self::START_LABEL => $label,
+            $profile = new Profile([
+                self::START_LABEL => self::formatLabel($labelOrFormat, ...$args),
                 self::TIME_OFFSET => 0,
                 self::MEMORY_USAGE_OFFSET => 0,
                 self::START_TIME => $now,
                 self::START_MEMORY_USAGE => $memoryUsage,
-            ];
+            ]);
 
-            static::$stack[] = $profile;
+            static::$session->start($profile);
 
             return true;
         }
@@ -129,53 +119,30 @@ class SimpleProfiler
     /**
      * Finish profiling and get result.
      *
-     * @param mixed  $args          [optional]
+     * Additional arguments are forwarded unchanged to sprintf when present.
      *
      * @throws ProfilerException
      *
      * @return bool|Profile profile on success or false on failure
      */
-    public static function finish(?string $labelOrFormat = null, mixed $args = null): bool|Profile
+    public static function finish(?string $labelOrFormat = null, mixed ...$args): false|Profile
     {
         if (static::$enabled) {
             $now = microtime(true);
 
-            $memoryUsage = static::$realUsage ? memory_get_usage(true) : memory_get_usage();
+            $memoryUsage = memory_get_usage(static::$realUsage);
 
-            if (static::$stack === []) {
-                throw new EmptyStackException('The stack is empty. Call ' . static::class . '::start() first.');
-            }
-
-            if ($args === null) {
-                $label = $labelOrFormat;
-            } else {
-                /** @noinspection SpellCheckingInspection */
-                $label = call_user_func_array(sprintf(...), func_get_args());
-            }
-
-            /** @var Profile $profile */
-            $profile = array_pop(static::$stack);
-            $profile->meta[self::FINISH_LABEL] = $label;
-            $profile->meta[self::FINISH_TIME] = $now;
-            $profile->meta[self::FINISH_MEMORY_USAGE] = $memoryUsage;
-            $profile->absoluteDuration = $profile->meta[self::FINISH_TIME] - $profile->meta[self::START_TIME];
-            $profile->duration = $profile->absoluteDuration - $profile->meta[self::TIME_OFFSET];
-            $profile->absoluteMemoryUsageChange = $profile->meta[self::FINISH_MEMORY_USAGE] -
-                $profile->meta[self::START_MEMORY_USAGE];
-            $profile->memoryUsageChange = $profile->absoluteMemoryUsageChange -
-                $profile->meta[self::MEMORY_USAGE_OFFSET];
-
-            if (static::$stack !== []) {
-                $timeOffset = &static::$stack[count(static::$stack) - 1]->meta[self::TIME_OFFSET];
-                $timeOffset += $profile->absoluteDuration;
-
-                $memoryUsageOffset = &static::$stack[count(static::$stack) - 1]->meta[self::MEMORY_USAGE_OFFSET];
-                $memoryUsageOffset += $profile->absoluteMemoryUsageChange;
-            }
-
-            return $profile;
+            return static::$session->finish(self::formatLabel($labelOrFormat, ...$args), $now, $memoryUsage);
         }
 
         return false;
+    }
+
+    /**
+     * Values are passed directly to sprintf, including user objects and resources.
+     */
+    private static function formatLabel(?string $label, mixed ...$args): ?string
+    {
+        return $args === [] ? $label : sprintf($label, ...$args);
     }
 }

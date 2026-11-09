@@ -1,16 +1,33 @@
 {
   "name": "runtracy",
-  "version": "0.2.15",
+  "version": "1.2.0",
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "version": "auto-changelog -p --commit-limit false && git add CHANGELOG.md",
-    "check": "remark . --frail",
-    "format": "remark . --quiet --frail --output"
+    "check": "remark . --ignore-pattern 'vendor/**' --frail",
+    "format": "remark . --ignore-pattern 'vendor/**' --quiet --frail --output",
+    "test:browser": "playwright test --config tests/browser/playwright.config.mjs",
+    "test:js": "npm --prefix packages/ajax-profiler test"
   },
   "devDependencies": {
-    "remark-cli": "^10.0.1",
-    "remark-lint-list-item-indent": "^3.1.1",
-    "remark-preset-lint-consistent": "^5.1.1",
-    "remark-preset-lint-recommended": "^6.1.2"
+    "@playwright/test": "^1.56.1",
+    "esbuild": "^0.28.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "vue": "^3.5.24",
+    "remark-cli": "^12.0.1",
+    "remark-lint-list-item-indent": "^4.0.1",
+    "remark-preset-lint-consistent": "^6.0.1",
+    "remark-preset-lint-recommended": "^7.0.1"
+  },
+  "overrides": {
+    "remark-cli": {
+      "glob": "^14.0.4",
+      "minimatch": "^11.0.5"
+    }
   },
   "remarkConfig": {
     "plugins": [

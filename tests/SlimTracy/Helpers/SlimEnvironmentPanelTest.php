@@ -21,15 +21,19 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class SlimEnvironmentPanelTest
  * @package Tests\SlimTracy\Helpers
  */
 class SlimEnvironmentPanelTest extends BaseTestCase
 {
+    /**
+     * Render environment values through Tracy's public static dumper API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testSlimEnvironmentPanel()
     {
-        $app = new \Slim\App($this->cfg);
+        $app = $this->createApp();
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [
@@ -37,14 +41,14 @@ class SlimEnvironmentPanelTest extends BaseTestCase
         ];
 
         $panel = new \SlimTracy\Helpers\SlimEnvironmentPanel(
-            \Tracy\Dumper::toHtml($app->getContainer()->get('environment')),
+            \Tracy\Dumper::toHtml(['REQUEST_METHOD' => 'GET', 'SERVER_NAME' => 'localhost']),
             $v
         );
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Slim Http Environment#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Slim Http Environment#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Http Environment#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Http Environment#', $panel->getPanel());
     }
 }

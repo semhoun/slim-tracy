@@ -5,11 +5,19 @@ declare(strict_types=1);
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
+    // Keep explicit ternaries required by PHP Insights; avoid contradictory autofixes.
+    ->withSkip([
+        \Rector\Php53\Rector\Ternary\TernaryToElvisRector::class,
+        // These parameters are consumed by the included panel template, not unused.
+        \Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector::class => [
+            __DIR__ . '/src/SlimTracy/Helpers/VendorVersionsPanel.php',
+        ],
+    ])
     ->withPaths([
         __DIR__ . '/src',
     ])
     ->withPhpSets(
-        php84: true
+        php82: true
     )
     ->withComposerBased(
         twig: true,
@@ -19,7 +27,6 @@ return RectorConfig::configure()
         deadCode: true,
         codeQuality: true,
         codingStyle: true,
-        naming: true,
         privatization: true,
         typeDeclarations: true,
         instanceOf: true,

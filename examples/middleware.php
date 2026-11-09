@@ -8,7 +8,8 @@ use App\Services\Settings;
 use Slim\App;
 use Slim\Views\Twig;
 use Slim\Views\TwigMiddleware;
-use Tracy\Debugger;
+use SlimTracy\Profiling\Configuration;
+use SlimTracy\Profiling\Routes;
 
 return static function (App $app): void {
     $container = $app->getContainer();
@@ -21,15 +22,16 @@ return static function (App $app): void {
 
     $app->add(new \RKA\Middleware\ProxyDetection());
 
-    // Add error handling middleware.
-    if ($settings->get('debug')) {
-        $app->add(new SlimTracy\Middlewares\TracyMiddleware($app, $container->get(Settings::class)->get('tracy')));
-        Debugger::enable(Debugger::Development);
-    } else {
-        $errorMiddleware = $app->addErrorMiddleware(false, true, false);
-        $errorHandler = $errorMiddleware->getDefaultErrorHandler();
-        $errorHandler->registerErrorRenderer('text/html', \App\Renderer\HtmlErrorRenderer::class);
-        $errorHandler->registerErrorRenderer('application/json', \App\Renderer\JsonErrorRenderer::class);
-        $errorHandler->setDefaultErrorRenderer('application/json', \App\Renderer\JsonErrorRenderer::class);
-    }
+    // These renderers belong to the host application, not this library.
+    $errorMiddleware = $app->addErrorMiddleware(false, true, false);
+    $errorHandler = $errorMiddleware->getDefaultErrorHandler();
+    $errorHandler->registerErrorRenderer('text/html', \App\Renderer\HtmlErrorRenderer::class);
+    $errorHandler->registerErrorRenderer('application/json', \App\Renderer\JsonErrorRenderer::class);
+    $errorHandler->setDefaultErrorRenderer('application/json', \App\Renderer\JsonErrorRenderer::class);
+
+    // Added last, Tracy wraps handled Slim errors without replacing their JSON responses.
+    $tracySettings = $settings->get('tracy');
+    $app->add(new SlimTracy\Middlewares\TracyMiddleware($app, $tracySettings));
+    $configuration = Configuration::fromSettings($tracySettings);
+    Routes::register($app, $configuration);
 };

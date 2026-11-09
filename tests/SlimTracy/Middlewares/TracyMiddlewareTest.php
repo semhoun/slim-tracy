@@ -1,226 +1,346 @@
 <?php
 
-/**
- * Copyright 2016 1f7.wizard@gmail.com
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 namespace Tests\SlimTracy\Middlewares;
 
-use Psr\Http\Message\ServerRequestInterface as Request;
-use Psr\Http\Message\ResponseInterface as Response;
-use Tests\BaseTestCase;
+use Doctrine\DBAL\Configuration;
+use Doctrine\DBAL\DriverManager;
+use Illuminate\Database\Capsule\Manager;
+use InvalidArgumentException;
+use LogicException;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RunTestsInSeparateProcesses;
+use Psr\Container\ContainerInterface;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7\Response;
+use Slim\App;
+use SlimTracy\Helpers\ConsolePanel;
+use SlimTracy\Helpers\PanelSelector;
+use SlimTracy\Helpers\SlimRequestPanel;
+use SlimTracy\Helpers\SlimResponsePanel;
+use SlimTracy\Middlewares\Support\PanelRegistry;
 use SlimTracy\Middlewares\TracyMiddleware;
+use Tests\BaseTestCase;
+use Tracy\Debugger;
+use Twig\Profiler\Profile;
 
-/**
- * @runTestsInSeparateProcesses
- * Class TracyMiddlewareTest
- * @package Tests\SlimTracy\Middlewares
- */
+/** Verifies panel selection, optional collectors, and middleware lifecycle ordering. */
+#[RunTestsInSeparateProcesses]
 class TracyMiddlewareTest extends BaseTestCase
 {
-    /**
-     * @covers \SlimTracy\Middlewares\TracyMiddleware
-     */
-    public function testTracyMiddleware()
+    /** Verify selected panels and optional collectors in a complete Slim request. */
+    public function testTracyMiddleware(): void
     {
-        $cookie = 'bar=foo; foo=bar; tracyPanelsEnabled=';
-        // set all possible panels
-        $cookie .= '["showPhpInfoPanel","showSlimRouterPanel","showSlimEnvironmentPanel",' .
-            '"showSlimRequestPanel","showSlimResponsePanel","showSlimContainer",' .
-            '"showEloquentORMPanel","showTwigPanel","showProfilerPanel","showVendorVersionsPanel"' .
-            ',"showXDebugHelper","showIncludedFiles","showConsolePanel","showDoctrinePanel"]';
-
-        $environment = \Slim\Http\Environment::mock(
-            [
-                'REQUEST_METHOD' => 'GET',
-                'REQUEST_URI'    => '/hello/World',
-                'HTTP_COOKIE'    => $cookie,// to TracyMiddleware
-                'HTTP_CONTENT_TYPE' => 'text/html; charset=utf-8'// Tracy check content-type
-            ]
-        );
-        $request = \Slim\Http\Request::createFromEnvironment($environment);
-        $response = new \Slim\Http\Response();
-
-        $app = new \Slim\App($this->cfg);
-
-        $c = $app->getContainer();
-        // Twig
-        $c['twig_profile'] = function () {
-            return new \Twig_Profiler_Profile();
-        };
-        $c['view'] = function ($c) {
-            $settings = $c->get('settings')['view'];
-            $view = new \Slim\Views\Twig($settings['template_path'], $settings['twig']);
-            // Add extensions
-            $view->addExtension(new \Slim\Views\TwigExtension($c->get('router'), $c->get('request')->getUri()));
-            $view->addExtension(new \Twig_Extension_Profiler($c['twig_profile']));
-            $view->addExtension(new \Twig_Extension_Debug());
-            return $view;
-        };
-        // Register Eloquent single connections
-        $capsule = new \Illuminate\Database\Capsule\Manager();
-        $capsule->addConnection($this->cfg['settings']['db']['connections']['mysql']);
+        $app = $this->createApp();
+        $container = $app->getContainer();
+        $configuration = new Configuration();
+        $container->set('doctrine.config', $configuration);
+        $container->set('twig_profile', new Profile());
+        $capsule = new Manager();
+        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
         $capsule->setAsGlobal();
         $capsule->bootEloquent();
-        $capsule::connection()->enableQueryLog();
+        $capsule->getConnection()->enableQueryLog();
 
-        $c['dbal'] = function () {
-            $conn = \Doctrine\DBAL\DriverManager::getConnection(
-                $this->getDoctrineDBALConfig(),
-                new \Doctrine\DBAL\Configuration()
-            );
-            // return DBAL\Connection
-            return $conn;
-        };
-        $this->assertInstanceOf('\Doctrine\DBAL\Connection', $c->get('dbal'));
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['showDoctrinePanel'] = true;
+        Debugger::$showBar = true;
+        $app->add(new TracyMiddleware($app, $settings));
+        $this->assertSame($settings, $container->get('tracy.settings'));
+        $this->assertCount(1, $configuration->getMiddlewares());
 
-        $app->add(new TracyMiddleware($app));
-
-        $app->get('/hello/{name}', function (Request $request, Response $response) {
-            return '
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            </head>
-            <body>
-                <div>Hello, ' . $request->getAttribute('name') . '</div>
-            </body>
-        </html>';
+        $app->get('/hello/{name}', function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use (
+            $configuration,
+            $capsule
+        ) {
+            $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
+            $connection->fetchOne('SELECT 1');
+            $capsule->getConnection()->select('SELECT 2');
+            $response->getBody()->write('<html><body>Hello, ' . $args['name'] . '</body></html>');
+            return $response->withHeader('Content-Type', 'text/html');
         });
-
-        // Process the application
-        $response = $app->process($request, $response);
-
-        $this->assertEquals(200, $response->getStatusCode());
-
-        $this->assertRegexp('/Hello\, World/s', (string)$response->getBody());
-
-        // try unset Manager
-        $capsule = new \Illuminate\Database\Capsule\Manager();
-        unset($capsule);
-        // check all work
-        $response = $app->process($request, $response);
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertRegexp('/Hello\, World/s', (string)$response->getBody());
-
-        // try unset container
-        unset($c['dbal']);
-        // check all work
-        $response = $app->process($request, $response);
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertRegexp('/Hello\, World/s', (string)$response->getBody());
+        $panels = array_keys(array_filter($settings, fn ($key) => $key !== 'configs', ARRAY_FILTER_USE_KEY));
+        $panels = array_unique(array_merge($panels, [
+            'showTwigPanel', 'showEloquentORMPanel', 'showPhpInfoPanel', 'showSlimRouterPanel',
+            'showSlimEnvironmentPanel', 'showSlimContainer', 'showProfilerPanel', 'showVendorVersionsPanel',
+            'showXDebugHelper', 'showIncludedFiles', 'showConsolePanel',
+        ]));
+        $request = (new Psr17Factory())->createServerRequest('GET', '/hello/World')
+            ->withCookieParams(['tracyPanelsEnabled' => json_encode(array_values($panels))]);
+        $response = $app->handle($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('Hello, World', (string) $response->getBody());
+        $this->assertCount(1, $container->get('tracy.doctrineQueries')->getQueries());
+        $this->assertCount(1, $capsule->getConnection()->getQueryLog());
+        foreach (
+            [\SlimTracy\Helpers\DoctrinePanel::class, \SlimTracy\Helpers\TwigPanel::class,
+            \SlimTracy\Helpers\EloquentORMPanel::class, \SlimTracy\Helpers\PanelSelector::class] as $panel
+        ) {
+            $this->assertInstanceOf($panel, Debugger::getBar()->getPanel($panel));
+        }
     }
 
-    public function testTracyMiddlewareWithoutCookies()
+    /** Verify default settings apply when no selection cookie is supplied. */
+    public function testTracyMiddlewareWithoutCookies(): void
     {
-        $environment = \Slim\Http\Environment::mock(
-            [
-                'REQUEST_METHOD' => 'GET',
-                'REQUEST_URI'    => '/hello/World',
-                'HTTP_COOKIE'    => '',
-                'HTTP_CONTENT_TYPE' => 'text/html; charset=utf-8'
-            ]
-        );
-        $request = \Slim\Http\Request::createFromEnvironment($environment);
-        $response = new \Slim\Http\Response();
-
-        $app = new \Slim\App($this->cfg);
-        $c = $app->getContainer();
-
-        $app->add(new TracyMiddleware($app));
-
-        $app->get('/hello/{name}', function (Request $request, Response $response) {
-            return '
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta http-equiv="X-UA-Compatible" content="IE=edge">
-            </head>
-            <body>
-                <div>Hello, ' . $request->getAttribute('name') . '</div>
-            </body>
-        </html>';
+        $app = $this->createApp();
+        Debugger::$showBar = true;
+        $app->add(new TracyMiddleware($app, $this->cfg['settings']['tracy']));
+        $app->get('/hello/{name}', function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) {
+            $response->getBody()->write('Hello, ' . $args['name']);
+            return $response;
         });
-
-        // Process the application
-        $response = $app->process($request, $response);
-        $this->assertEquals(200, $response->getStatusCode());
-        $this->assertRegexp('/Hello\, World/s', (string)$response->getBody());
+        $request = (new Psr17Factory())->createServerRequest('GET', '/hello/World');
+        $response = $app->handle($request);
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Hello, World', (string) $response->getBody());
+        $this->assertFalse($app->getContainer()->has('tracy.doctrineQueries'));
     }
 
-    public function testTracyMiddlewareDirectly()
+    /** Verify direct middleware invocation preserves the handler response. */
+    public function testTracyMiddlewareDirectly(): void
     {
-        $app = new \Slim\App();
+        Debugger::$showBar = true;
+        $middleware = new TracyMiddleware($this->createApp(), $this->cfg['settings']['tracy']);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+        $response = new Response(201);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
+        $this->assertSame($response, $middleware->process($request, $handler));
+    }
 
-        $mid = new \SlimTracy\Middlewares\TracyMiddleware();
-
-        $this->assertInstanceOf('\SlimTracy\Middlewares\TracyMiddleware', $mid);
-
-        $environment = \Slim\Http\Environment::mock(
-            [
-                'REQUEST_METHOD' => 'GET',
-                'REQUEST_URI'    => '/hello/World',
-                'HTTP_COOKIE'    => '',// to TracyMiddleware
-                'HTTP_CONTENT_TYPE' => 'text/html; charset=utf-8'// Tracy check content-type
-            ]
+    /**
+     * Inspect Tracy's public static bar accessor after cookie-based panel selection.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    public function testCookieOverridesSettingsAndMissingIntegrationsAreIgnored(): void
+    {
+        $app = $this->createApp();
+        Debugger::$showBar = true;
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['showSlimRequestPanel'] = false;
+        $middleware = new TracyMiddleware($app, $settings);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/')
+            ->withCookieParams(['tracyPanelsEnabled' => json_encode([
+                'showSlimRequestPanel', 'showTwigPanel', 'showDoctrinePanel',
+            ])]);
+        $response = new Response();
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
+        $this->assertSame($response, $middleware->process($request, $handler));
+        $bar = Debugger::getBar();
+        $this->assertInstanceOf(
+            \SlimTracy\Helpers\SlimRequestPanel::class,
+            $bar->getPanel(\SlimTracy\Helpers\SlimRequestPanel::class)
         );
-        $req = \Slim\Http\Request::createFromEnvironment($environment);
-        $res = new \Slim\Http\Response();
-
-        $this->assertNull($mid->__invoke($req, $res, $this->fakeReturn($req, $res)));
-//fwrite(STDERR, '$mid: ' . var_export($mid->__invoke($req, $res, $this->fakeReturn()), true) . " ###\n");
-        //__invoke(Request $request, Response $response, callable $next)
-
-
-//fwrite(STDERR, '$mid: ' . var_export($foo->invokeArgs($obj, [$req, $res]), true) . " ###\n");
+        $this->assertNull($bar->getPanel(\SlimTracy\Helpers\SlimResponsePanel::class));
+        $this->assertNull($bar->getPanel(\SlimTracy\Helpers\TwigPanel::class));
+        $this->assertNull($bar->getPanel(\SlimTracy\Helpers\DoctrinePanel::class));
     }
 
-    public function testRunCollectorsReturnNull()
+    /** Verify disabled bars do not register collectors or container settings. */
+    public function testDisabledBarPassesThroughWithoutRegisteringCollectors(): void
     {
-        $foo = self::getMethod('runCollectors');
-        $obj = new TracyMiddleware();
-
-        $this->assertNull($foo->invokeArgs($obj, []));
+        $app = $this->createApp();
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['configs']['ShowBar'] = false;
+        $middleware = new TracyMiddleware($app, $settings);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+        $response = new Response();
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
+        $this->assertSame($response, $middleware->process($request, $handler));
+        $this->assertFalse($app->getContainer()->has('tracy.settings'));
     }
 
-    protected static function getMethod($name)
+    /** Verify invalid selection cookies fall back to default panels. */
+    #[DataProvider('invalidPanelCookies')]
+    public function testInvalidCookieFallsBackToDefaults(string|array $cookie): void
     {
-        $class = new \ReflectionClass('\SlimTracy\Middlewares\TracyMiddleware');
-        $method = $class->getMethod($name);
-        $method->setAccessible(true);
-        return $method;
+        $app = $this->createApp();
+        Debugger::$showBar = true;
+        $middleware = new TracyMiddleware($app, $this->cfg['settings']['tracy']);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/')
+            ->withCookieParams(['tracyPanelsEnabled' => $cookie]);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('handle')->willReturn(new Response());
+
+        $middleware->process($request, $handler);
+
+        self::assertInstanceOf(SlimRequestPanel::class, Debugger::getBar()->getPanel(SlimRequestPanel::class));
+        self::assertInstanceOf(SlimResponsePanel::class, Debugger::getBar()->getPanel(SlimResponsePanel::class));
     }
 
-    protected function fakeReturn(Request $req, Response $res)
+    /** Supply malformed and unsupported panel selection cookie values. */
+    public static function invalidPanelCookies(): array
     {
-        return function ($req, $res) {
-            return null;
-        };
+        return [['invalid JSON'], ['null'], ['false'], ['"showTwigPanel"'], ['[]'], [['unexpected array']]];
     }
 
-    protected function getDoctrineDBALConfig()
+    /** Verify cookies and no-login settings cannot override a disabled console. */
+    public function testDisabledConsoleCannotBeEnabledByCookieOrNoLogin(): void
+    {
+        Debugger::$showBar = true;
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['configs']['ConsoleEnable'] = false;
+        $settings['configs']['ConsoleNoLogin'] = true;
+        $middleware = new TracyMiddleware($this->createApp(), $settings);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/')
+            ->withCookieParams(['tracyPanelsEnabled' => '["showConsolePanel"]']);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('handle')->willReturn(new Response());
+
+        $middleware->process($request, $handler);
+
+        self::assertNull(Debugger::getBar()->getPanel(ConsolePanel::class));
+        self::assertStringNotContainsString(
+            'showConsolePanel',
+            Debugger::getBar()->getPanel(PanelSelector::class)->getPanel()
+        );
+    }
+
+    /** Verify optional service factories remain lazy when unselected. */
+    public function testUnselectedFactoriesDoNotResolveOptionalServices(): void
+    {
+        Debugger::$showBar = true;
+        $app = $this->createApp();
+        $app->getContainer()->set('twig_profile', static function (): never {
+            throw new LogicException('An unselected Twig factory must remain lazy.');
+        });
+        $middleware = new TracyMiddleware($app, $this->cfg['settings']['tracy']);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/')
+            ->withCookieParams(['tracyPanelsEnabled' => '["showSlimRequestPanel"]']);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('handle')->willReturn(new Response());
+
+        $middleware->process($request, $handler);
+
+        self::assertNull(Debugger::getBar()->getPanel(\SlimTracy\Helpers\TwigPanel::class));
+        self::assertInstanceOf(SlimRequestPanel::class, Debugger::getBar()->getPanel(SlimRequestPanel::class));
+    }
+
+    /** Verify a missing container produces an actionable error. */
+    public function testMissingContainerHasClearError(): void
+    {
+        Debugger::$showBar = true;
+        $app = new App(new Psr17Factory());
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Tracy requires a container with a public set() method.');
+        new TracyMiddleware($app, $this->cfg['settings']['tracy']);
+    }
+
+    /** Reject a read-only container without resolving its services. */
+    public function testReadOnlyContainerHasClearErrorWithoutResolvingServices(): void
+    {
+        Debugger::$showBar = true;
+        $container = $this->createMock(ContainerInterface::class);
+        $container->expects($this->never())->method('get');
+        $container->expects($this->never())->method('has');
+        $app = new App(new Psr17Factory(), $container);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Tracy requires a container with a public set() method.');
+        new TracyMiddleware($app, $this->cfg['settings']['tracy']);
+    }
+
+    /** Verify disabled bars do not require a writable container. */
+    public function testDisabledBarDoesNotRequireContainerAndStaysInactive(): void
+    {
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['configs']['ShowBar'] = false;
+        $middleware = new TracyMiddleware(new App(new Psr17Factory()), $settings);
+        Debugger::$showBar = true;
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+        $response = new Response(202);
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
+
+        self::assertSame($response, $middleware->process($request, $handler));
+        self::assertNull(Debugger::getBar()->getPanel(PanelSelector::class));
+    }
+
+    /** Verify panel factory enumeration is ordered and lazy. */
+    public function testFactoriesPreservePanelOrderWithoutConstructingPanels(): void
+    {
+        $registry = new PanelRegistry($this->createApp(), []);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+
+        $factories = $registry->factories($request, new Response());
+
+        self::assertSame([
+            'showEloquentORMPanel', 'showTwigPanel', 'showPhpInfoPanel', 'showSlimEnvironmentPanel',
+            'showSlimContainer', 'showSlimRouterPanel', 'showSlimRequestPanel', 'showSlimResponsePanel',
+            'showVendorVersionsPanel', 'showXDebugHelper', 'showIncludedFiles', 'showConsolePanel',
+            'showProfilerPanel', 'showDoctrinePanel',
+        ], array_keys($factories));
+        self::assertNull(Debugger::getBar()->getPanel(SlimRequestPanel::class));
+    }
+
+    /** Verify every visible console selection remains checked in the selector. */
+    #[\PHPUnit\Framework\Attributes\DataProvider('consoleSelectionCases')]
+    public function testVisibleConsoleRemainsCheckedInThePanelSelector(
+        int $configured,
+        int $noLogin,
+        ?string $cookie
+    ): void {
+        Debugger::$showBar = true;
+        $settings = $this->cfg['settings']['tracy'];
+        $settings['showConsolePanel'] = $configured;
+        $settings['configs']['ConsoleNoLogin'] = $noLogin;
+        $settings['configs']['ConsoleEnable'] = true;
+        $middleware = new TracyMiddleware($this->createApp(), $settings);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+        if ($cookie !== null) {
+            $request = $request->withCookieParams(['tracyPanelsEnabled' => $cookie]);
+        }
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('handle')->willReturn(new Response());
+        $middleware->process($request, $handler);
+
+        self::assertInstanceOf(ConsolePanel::class, Debugger::getBar()->getPanel(ConsolePanel::class));
+        $selector = Debugger::getBar()->getPanel(PanelSelector::class);
+        self::assertMatchesRegularExpression(
+            '/name="selectedPanels\[\]"\s+checked="checked"\s+value="showConsolePanel"/',
+            $selector->getPanel()
+        );
+    }
+
+    /** Supply settings, cookie, and no-login console selections. */
+    public static function consoleSelectionCases(): array
     {
         return [
-            'driver' => 'pdo_mysql',
-            'host' => '127.0.0.1',
-            'user' => 'dbuser',
-            'password' => '123',
-            'dbname' => 'bookshelf',
-            'port' => 3306,
-            'charset' => 'utf8',
+            'settings' => [1, 0, null],
+            'cookie' => [0, 0, '["showConsolePanel"]'],
+            'without login' => [0, 1, '["showSlimRequestPanel"]'],
         ];
+    }
+
+    /** Verify panel registration happens after the application handler. */
+    public function testPanelsAreRegisteredOnlyAfterTheHandlerReturns(): void
+    {
+        Debugger::$showBar = true;
+        $middleware = new TracyMiddleware($this->createApp(), $this->cfg['settings']['tracy']);
+        $request = (new Psr17Factory())->createServerRequest('GET', '/');
+        $response = new Response();
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->expects($this->once())->method('handle')->willReturnCallback(static function () use ($response) {
+            self::assertNull(Debugger::getBar()->getPanel(SlimRequestPanel::class));
+            return $response;
+        });
+
+        self::assertSame($response, $middleware->process($request, $handler));
+        self::assertInstanceOf(SlimRequestPanel::class, Debugger::getBar()->getPanel(SlimRequestPanel::class));
     }
 }

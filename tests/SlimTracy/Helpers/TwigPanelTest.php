@@ -1,66 +1,32 @@
 <?php
 
-/**
- * Copyright 2016 1f7.wizard@gmail.com
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 namespace Tests\SlimTracy\Helpers;
 
+use Slim\Views\Twig;
+use SlimTracy\Helpers\TwigPanel;
 use Tests\BaseTestCase;
+use Twig\Extension\DebugExtension;
+use Twig\Extension\ProfilerExtension;
+use Twig\Loader\ArrayLoader;
+use Twig\Profiler\Profile;
 
-/**
- * @runTestsInSeparateProcesses
- * Class TwigPanelTest
- * @package Tests\SlimTracy\Helpers
- */
+/** Verifies Twig profiler data from a real rendered template. */
 class TwigPanelTest extends BaseTestCase
 {
-    public function testTwigPanel()
+    /** Verify a real rendered Twig template is represented in the profiler panel. */
+    public function testTwigPanel(): void
     {
-        if (class_exists('\\Slim\\Views\\TwigExtension')) {
-            $app = new \Slim\App($this->cfg);
-            $c = $app->getContainer();
+        $profile = new Profile();
+        $view = new Twig(new ArrayLoader(['hello' => 'Hello {{ name }}']), ['debug' => true]);
+        $view->addExtension(new ProfilerExtension($profile));
+        $view->addExtension(new DebugExtension());
+        $this->assertSame('Hello World', $view->fetch('hello', ['name' => 'World']));
+        $this->assertCount(1, $profile->getProfiles());
 
-            $c['twig_profile'] = function () {
-                return new \Twig_Profiler_Profile();
-            };
-
-            $view = new \Slim\Views\Twig(
-                $this->cfg['settings']['view']['template_path'],
-                $this->cfg['settings']['view']['twig']
-            );
-            // Add extensions
-            $view->addExtension(new \Slim\Views\TwigExtension($c->get('router'), $c->get('request')->getUri()));
-            $view->addExtension(new \Twig_Extension_Profiler($c['twig_profile']));
-            $view->addExtension(new \Twig_Extension_Debug());
-
-            $this->assertInstanceOf('\Slim\App', $app);
-            $this->assertInstanceOf('\Slim\Container', $c);
-            $this->assertInstanceOf('\Twig_Profiler_Profile', $c['twig_profile']);
-            $this->assertInstanceOf('\Slim\Views\Twig', $view);
-
-            $panel = new \SlimTracy\Helpers\TwigPanel($c['twig_profile']);
-
-            $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
-
-            // test Tracy tab
-            $this->assertRegexp('#Twig Info#', $panel->getTab());
-            // test Tracy panel
-            $this->assertRegexp('#Twig profiler result#', $panel->getPanel());
-        } else {
-            $this->markTestSkipped('Twig/TwigExtension not installed and all tests in this file are invactive!');
-        }
+        $panel = new TwigPanel($profile, ['slim' => \Slim\App::VERSION]);
+        $this->assertInstanceOf(\Tracy\IBarPanel::class, $panel);
+        $this->assertMatchesRegularExpression('#Twig Info#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Twig profiler result#', $panel->getPanel());
+        $this->assertStringContainsString('hello', $panel->getPanel());
     }
 }
