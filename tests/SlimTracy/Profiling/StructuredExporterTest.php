@@ -31,10 +31,10 @@ final class StructuredExporterTest extends ProfilerTestCase
         $data = (new StructuredExporter($container, $settings))->export();
         self::assertCount(1, $data['eloquent']['queries']);
         self::assertSame(
-            $capsule->getConnection()->getQueryLog()[0]['time'],
+            (float) $capsule->getConnection()->getQueryLog()[0]['time'],
             $data['eloquent']['queries'][0]['durationMs']
         );
-        self::assertSame($twig->getDuration() * 1000, $data['twig']['profiles'][0]['durationMs']);
+        self::assertSame((float) $twig->getDuration() * 1000, $data['twig']['profiles'][0]['durationMs']);
         self::assertStringNotContainsString('binding-secret', json_encode($data));
         $capsule->getConnection()->disableQueryLog();
         self::assertArrayNotHasKey('eloquent', (new StructuredExporter($container, $settings))->export());

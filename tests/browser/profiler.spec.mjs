@@ -200,18 +200,28 @@ test('same-cookie API concurrency avoids native Tracy session serialization', as
   await page.goto(`${api}/loader`);
   await expect(page.locator('#tracy-debug')).toBeAttached();
   const cookies = await context.cookies(api);
-  expect(cookies.some((cookie) => cookie.name === 'tracy-session')).toBe(true);
-  const result = await page.evaluate(async () => {
+  const tracyCookie = cookies.find((cookie) => cookie.name === 'tracy-session');
+  expect(tracyCookie?.value).toMatch(/^\w{10}$/);
+  await page.goto(frontend);
+  const result = await page.evaluate(async (origins) => {
     const start = performance.now();
-    const responses = await Promise.all(Array.from({ length: 3 }, (_, index) => fetch(`/slow?request=${index}`, { cache: 'no-store' })));
+    // Independent listeners avoid relying on PHP prefork or a single browser connection pool.
+    const responses = await Promise.all(origins.map((origin) => fetch(`${origin}/slow?request=${crypto.randomUUID()}`, {
+      method: 'GET', credentials: 'include', cache: 'no-store',
+    })));
     return {
       elapsed: performance.now() - start,
       ids: responses.map((response) => response.headers.get('X-SlimTracy-Profile')),
       handlers: await Promise.all(responses.map((response) => response.json())),
     };
-  });
-  expect(new Set(result.ids).size).toBe(3);
+  }, [api, 'http://127.0.0.1:8785']);
+  expect(result.ids).toHaveLength(2);
+  expect(result.ids.every(Boolean)).toBe(true);
+  expect(new Set(result.ids).size).toBe(2);
+  expect(result.handlers).toHaveLength(2);
   expect(result.handlers.every((handler) => handler.hasTracyCookie)).toBe(true);
+  expect(new Set(result.handlers.map((handler) => handler.processId)).size).toBe(2);
+  expect((await context.cookies(api)).find((cookie) => cookie.name === 'tracy-session')?.value).toBe(tracyCookie.value);
   // Compare actual server-handler intervals, not a fragile CI wall-clock performance budget.
   const overlaps = result.handlers.some((handler, index) => result.handlers.some((other, otherIndex) =>
     index !== otherIndex && handler.started < other.finished && other.started < handler.finished));

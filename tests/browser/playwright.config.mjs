@@ -22,5 +22,5 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   use: { browserName: 'chromium', headless: true },
-  webServer: [server(8781, 'enabled'), server(8782, 'frontend'), server(8783, 'disabled'), server(8784, 'production')],
+  webServer: [server(8781, 'enabled'), server(8782, 'frontend'), server(8783, 'disabled'), server(8784, 'production'), server(8785, 'enabled')],
 });

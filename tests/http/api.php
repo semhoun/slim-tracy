@@ -70,6 +70,7 @@ $app->get('/slow', function ($request, $response) {
     $response->getBody()->write(json_encode([
         'slow' => true, 'started' => $started, 'finished' => hrtime(true),
         'hasTracyCookie' => isset($_COOKIE['tracy-session']),
+        'processId' => getmypid(),
     ], JSON_THROW_ON_ERROR));
     return $response->withHeader('Content-Type', 'application/json');
 });
@@ -113,6 +114,7 @@ $app->add(function (ServerRequestInterface $request, RequestHandlerInterface $ha
         && !str_starts_with($request->getUri()->getPath(), '/_tracy/')
     ) {
         return $response->withHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:8782')
+            ->withHeader('Access-Control-Allow-Credentials', 'true')
             ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
             ->withHeader('Access-Control-Expose-Headers', 'X-SlimTracy-Profile, X-Host-Cors')
