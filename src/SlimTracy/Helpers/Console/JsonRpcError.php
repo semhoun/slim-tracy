@@ -15,7 +15,13 @@ final class JsonRpcError
         -32603 => 'Internal error',
     ];
 
-    /** @return array<string, array|bool|float|int|\stdClass|string|null> */
+    /**
+     * Build an error envelope, preserving the public JSON-RPC id parameter name.
+     *
+     * @return array<string, array|bool|float|int|\stdClass|string|null>
+     *
+     * @SuppressWarnings(PHPMD.ShortVariable)
+     */
     public static function response(
         int $code,
         array|bool|float|int|\stdClass|string|null $id = null,

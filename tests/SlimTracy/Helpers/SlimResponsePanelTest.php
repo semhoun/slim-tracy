@@ -26,6 +26,11 @@ use Tests\BaseTestCase;
  */
 class SlimResponsePanelTest extends BaseTestCase
 {
+    /**
+     * Render a real response through Tracy's public static dumper API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testSlimResponsePanel()
     {
         $app = $this->createApp();

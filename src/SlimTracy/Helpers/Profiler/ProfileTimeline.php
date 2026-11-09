@@ -12,7 +12,7 @@ namespace SlimTracy\Helpers\Profiler;
 final class ProfileTimeline
 {
     /**
-     * @param list<Profile> $profiles
+     * @param list<Profile> $profiles Completed measurements sharing the rendered timeline.
      *
      * @return array{meta_time_zero: float, meta_time_total: float, meta_memory_peak: int,
      *     meta_time_line: array<int, array{meta_time_line__memory_usage: int}>}
@@ -43,7 +43,7 @@ final class ProfileTimeline
     }
 
     /**
-     * @param array<int, array{meta_time_line__memory_usage: int}> $timeline
+     * @param array<int, array{meta_time_line__memory_usage: int}> $timeline Memory samples keyed by milliseconds.
      */
     private static function sample(array &$timeline, float $time, int $memory): void
     {

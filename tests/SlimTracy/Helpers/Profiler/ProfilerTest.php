@@ -17,6 +17,7 @@ use SlimTracy\Helpers\Profiler\Exception\EmptyStack;
  */
 class ProfilerTest extends BaseTestCase
 {
+    /** Verify enabling the profiler initializes its service and records a measurement. */
     public function testEnableCallsProfilerServiceInit()
     {
         Profiler::enable();
@@ -30,6 +31,7 @@ class ProfilerTest extends BaseTestCase
         $this->assertTrue(ProfilerService::hasInstance());
     }
 
+    /** Verify the default panel explains that profiling is disabled. */
     public function testProfilerPanel()
     {
         $panel = new \SlimTracy\Helpers\ProfilerPanel($this->cfg['settings']['tracy']['configs']['ProfilerPanel']);
@@ -41,6 +43,7 @@ class ProfilerTest extends BaseTestCase
         $this->assertMatchesRegularExpression('#Profiling is disabled#', $panel->getPanel());
     }
 
+    /** Verify nested measurements subtract child costs and notify the processor. */
     public function testNestedMeasurementsExcludeChildAndInvokeProcessor(): void
     {
         $completed = [];
@@ -70,12 +73,18 @@ class ProfilerTest extends BaseTestCase
         $this->assertSame('parent end', $parent->metadata()['finish_label']);
     }
 
+    /** Verify finishing an empty session reports stack underflow. */
     public function testEmptySessionReportsUnderflow(): void
     {
         $this->expectException(EmptyStack::class);
         (new ProfilingSession())->finish(null, 1.0, 0);
     }
 
+    /**
+     * Exercise the public static profiler facades while disabled.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testDisabledProfilerDoesNotProcessMeasurements(): void
     {
         $this->assertFalse(Profiler::start('disabled'));
@@ -84,6 +93,11 @@ class ProfilerTest extends BaseTestCase
         $this->assertFalse(AdvancedProfiler::finish('disabled'));
     }
 
+    /**
+     * Exercise the static formatting facade with a resource argument.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testFormattingPreservesAllArgumentsIncludingResources(): void
     {
         $resource = fopen('php://memory', 'r+');
@@ -98,6 +112,11 @@ class ProfilerTest extends BaseTestCase
         }
     }
 
+    /**
+     * Exercise the static advanced-profiler API and its service accessor.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testProcessorInjectionAndAutomaticLabels(): void
     {
         $processed = [];

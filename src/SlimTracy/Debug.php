@@ -9,11 +9,19 @@ use Tracy\Debugger;
 /** Autoloaded debugging shortcuts without global functions. */
 final class Debug
 {
+    /** Prevent instances of this static debugging facade. */
     private function __construct()
     {
     }
 
-    /** Dump any value and terminate at the caller's location. */
+    /**
+     * Dump any value and terminate at the caller's location.
+     *
+     * Tracy exposes dumping statically; termination is this shortcut's explicit contract.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.ExitExpression)
+     */
     public static function dumpAndExit(mixed $value = ''): never
     {
         Debugger::dump($value);
@@ -21,7 +29,11 @@ final class Debug
         exit('-- im in ' . $trace[0]['file'] . ', line: ' . $trace[0]['line'] . ' --');
     }
 
-    /** Start a named timer or return its elapsed time. */
+    /**
+     * Start a named timer or return its elapsed time through Tracy's static API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public static function timer(?string $name = ''): float
     {
         return Debugger::timer($name);

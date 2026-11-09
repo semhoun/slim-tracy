@@ -13,9 +13,17 @@ namespace SlimTracy\Helpers;
 final class SqlQueryTable
 {
     /**
-     * @param iterable<SqlLog> $logs
+     * Renders completed statements and sums their execution times.
      *
-     * @return array{html: string, count: int, time: string}
+     * SqlParameters provides stateless value and type formatting through its public static API.
+     *
+     * @param iterable $logs Collected Doctrine statements, including incomplete records.
+     *
+     * @return array{html: string, count: int, time: string} Table HTML, completed count, and formatted total seconds.
+     *
+     * @phpstan-param iterable<SqlLog> $logs
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public static function render(iterable $logs): array
     {

@@ -37,15 +37,18 @@ final class ProfilerService
      */
     private array $profiles = [];
 
+    /** Keep the shared collector accessible only through its lazy accessor. */
     private function __construct()
     {
     }
 
+    /** Return the request's shared manual-profile collector, creating it lazily. */
     public static function getInstance(): self
     {
         return self::$instance ??= new self();
     }
 
+    /** Check for an existing collector without initializing one. */
     public static function hasInstance(): bool
     {
         return self::$instance instanceof self;
@@ -77,6 +80,7 @@ final class ProfilerService
         return $this->profiles;
     }
 
+    /** Visit measurements with their positions within the common timeline. */
     public function iterateProfiles(callable $callback): void
     {
         $metaData = $this->getMetaData();
@@ -86,6 +90,7 @@ final class ProfilerService
         }
     }
 
+    /** Visit memory samples as relative time and peak-memory percentages. */
     public function iterateMemoryTimeLine(callable $callback): void
     {
         $metaData = $this->getMetaData();
@@ -107,6 +112,10 @@ final class ProfilerService
 
     /**
      * @return array<string, float|int|array<int, array<string, int>>>
+     *
+     * The timeline builder is a stateless calculation over these profiles.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     private function getMetaData(): array
     {

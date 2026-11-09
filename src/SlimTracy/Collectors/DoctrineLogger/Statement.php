@@ -9,6 +9,7 @@ use Doctrine\DBAL\Driver\Result as ResultInterface;
 use Doctrine\DBAL\Driver\Statement as StatementInterface;
 use Doctrine\DBAL\ParameterType;
 
+/** Capture bound values and execution timings around a DBAL driver statement. */
 final class Statement extends AbstractStatementMiddleware
 {
     /** @var array<array-key, scalar|array|object|resource|null> Bound driver values, including LOB streams. */
@@ -26,6 +27,7 @@ final class Statement extends AbstractStatementMiddleware
         parent::__construct($statement);
     }
 
+    /** Retain the bound value and type for query reporting before forwarding to DBAL. */
     public function bindValue(int|string $param, mixed $value, ParameterType $type): void
     {
         $this->params[$param] = $value;
@@ -34,6 +36,7 @@ final class Statement extends AbstractStatementMiddleware
         parent::bindValue($param, $value, $type);
     }
 
+    /** Execute the driver statement and record timing even when execution fails. */
     public function execute(): ResultInterface
     {
         $start = microtime(true);

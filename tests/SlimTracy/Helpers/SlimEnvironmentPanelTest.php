@@ -26,6 +26,11 @@ use Tests\BaseTestCase;
  */
 class SlimEnvironmentPanelTest extends BaseTestCase
 {
+    /**
+     * Render environment values through Tracy's public static dumper API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testSlimEnvironmentPanel()
     {
         $app = $this->createApp();

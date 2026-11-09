@@ -10,8 +10,10 @@ use Twig\Extension\ProfilerExtension;
 use Twig\Loader\ArrayLoader;
 use Twig\Profiler\Profile;
 
+/** Verifies Twig profiler data from a real rendered template. */
 class TwigPanelTest extends BaseTestCase
 {
+    /** Verify a real rendered Twig template is represented in the profiler panel. */
     public function testTwigPanel(): void
     {
         $profile = new Profile();

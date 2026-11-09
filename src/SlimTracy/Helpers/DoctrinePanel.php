@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2017 1f7.wizard@gmail.com.
  *
@@ -18,27 +16,49 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
 /**
- * Class DoctrinePanel.
+ * Displays completed Doctrine statements and their aggregate duration.
  */
 final class DoctrinePanel implements IBarPanel
 {
+    /**
+     * @var string|null Doctrine icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
+    /**
+     * @var string Rendered query table rows.
+     */
     private readonly string $parsed;
 
+    /**
+     * @var integer Number of completed statements.
+     */
     private readonly int $count;
 
+    /**
+     * @var string Aggregate execution time formatted in seconds.
+     */
     private readonly string $time;
 
     /**
-     * @param iterable<array{sql: string, executionMS?: float,
+     * Builds a table from the collected Doctrine statements.
+     *
+     * SqlQueryTable provides stateless query rendering through its public static API.
+     *
+     * @param iterable              $logs Collected statement records.
+     * @param array<string, string> $ver  Framework version labels.
+     *
+     * @phpstan-param iterable<array{sql: string, executionMS?: float,
      *     params: array<scalar|resource|null>|null, types: array<\Doctrine\DBAL\ParameterType>|null}> $logs
-     * @param array<string, string> $ver
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public function __construct(iterable $logs = [], private array $ver = [])
     {
@@ -48,6 +68,11 @@ final class DoctrinePanel implements IBarPanel
         $this->parsed = $table['html'];
     }
 
+    /**
+     * Renders the statement count and duration summary.
+     *
+     * @return string Toolbar HTML with the total query time in milliseconds.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/DoctrinePanel.html');
@@ -58,6 +83,11 @@ final class DoctrinePanel implements IBarPanel
         </span>';
     }
 
+    /**
+     * Renders the collected statements and totals.
+     *
+     * @return string Doctrine query table HTML.
+     */
     public function getPanel(): string
     {
         return '

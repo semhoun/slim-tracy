@@ -29,6 +29,7 @@ use SlimTracy\Helpers\Profiler\ProfilerService;
  */
 class ProfilerPanelTest extends BaseTestCase
 {
+    /** Verify the disabled profiler panel does not present measurements. */
     public function testProfilerPanelDisabled()
     {
         $this->assertFalse(Profiler::isEnabled());
@@ -42,6 +43,7 @@ class ProfilerPanelTest extends BaseTestCase
         $this->assertMatchesRegularExpression('#Profiling is disabled#s', $panel->getPanel());
     }
 
+    /** Verify effective-memory rendering follows the profiler's enabled state. */
     public function testProfilerPanelEnabledShowMemEffective()
     {
         $this->assertFalse(Profiler::isEnabled());
@@ -62,6 +64,11 @@ class ProfilerPanelTest extends BaseTestCase
         $this->assertMatchesRegularExpression('#effective#s', $panel->getPanel());
     }
 
+    /**
+     * Exercise the static profiler facade's absolute-memory setting.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testProfilerPanelEnabledShowMemAbsolute()
     {
         $this->assertFalse(Profiler::isEnabled());
@@ -82,6 +89,7 @@ class ProfilerPanelTest extends BaseTestCase
         $this->assertMatchesRegularExpression('#absolute#s', $panel->getPanel());
     }
 
+    /** Verify stored profiles appear in the tab count and memory chart. */
     public function testProfilerService()
     {
         Profiler::enable();
@@ -99,6 +107,11 @@ class ProfilerPanelTest extends BaseTestCase
         $this->assertMatchesRegularExpression('#svg style=#s', $panel->getPanel());
     }
 
+    /**
+     * Populate the static profiler service to verify every rendering option.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testRenderingOptionsKeepMeasurementAndTimelineFormats(): void
     {
         Profiler::enable();
@@ -110,7 +123,11 @@ class ProfilerPanelTest extends BaseTestCase
                     foreach ([false, true] as $timeline) {
                         $panel = new \SlimTracy\Helpers\ProfilerPanel([
                             'primaryValue' => $value,
-                            'show' => ['memoryUsageChart' => $chart, 'shortProfiles' => $short, 'timeLines' => $timeline],
+                            'show' => [
+                                'memoryUsageChart' => $chart,
+                                'shortProfiles' => $short,
+                                'timeLines' => $timeline,
+                            ],
                         ]);
                         $html = $panel->getPanel();
                         $this->assertStringContainsString('Time (' . $value . ')', $html);
@@ -129,6 +146,11 @@ class ProfilerPanelTest extends BaseTestCase
         ]))));
     }
 
+    /**
+     * Populate the static profiler service to verify labels and short-profile filtering.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testDistinctLabelsAndShortProfileFiltering(): void
     {
         Profiler::enable();
@@ -156,6 +178,7 @@ class ProfilerPanelTest extends BaseTestCase
         $this->assertStringContainsString('>tiny</td>', $html);
     }
 
+    /** Populate the service with fixed measurements for deterministic panel output. */
     protected function fillTestData(&$p)
     {
         $testProfiles =  [
@@ -198,14 +221,14 @@ class ProfilerPanelTest extends BaseTestCase
         ];
 
         foreach ($testProfiles as $profile) {
-            $np = new Profile(
+            $measurement = new Profile(
                 $profile['meta'],
                 $profile['absoluteDuration'],
                 $profile['duration'],
                 $profile['absoluteMemoryUsageChange'],
                 $profile['memoryUsageChange']
             );
-            $p->addProfile($np);
+            $p->addProfile($measurement);
         }
     }
 }

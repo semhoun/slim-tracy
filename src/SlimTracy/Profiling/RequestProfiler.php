@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SlimTracy\Profiling;
 
+use DateTimeImmutable;
+use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
@@ -23,7 +25,32 @@ final readonly class RequestProfiler implements MiddlewareInterface
     ) {
     }
 
-    /** Preserve the original response stream and any escaping exception. */
+    /**
+     * Compose the storage and collector dependencies at the integration boundary.
+     *
+     * @param Configuration $configuration Effective profiler settings.
+     * @param ContainerInterface $container Host application's optional integrations.
+     * @param array<string, mixed> $settings Full Tracy settings.
+     *
+     * @return self Request-scoped profiler with a shared snapshot store.
+     */
+    public static function fromContainer(
+        Configuration $configuration,
+        ContainerInterface $container,
+        array $settings
+    ): self {
+        return new self(
+            $configuration,
+            new FileStore($configuration),
+            new StructuredExporter($container, $settings, $configuration)
+        );
+    }
+
+    /**
+     * Preserve response streams and use the stateless export/CORS policies.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (
@@ -42,7 +69,7 @@ final readonly class RequestProfiler implements MiddlewareInterface
         }
 
         $started = hrtime(true);
-        $startedAt = (new \DateTimeImmutable())->format('Y-m-d\TH:i:s.uP');
+        $startedAt = (new DateTimeImmutable())->format('Y-m-d\TH:i:s.uP');
         $response = null;
         try {
             $response = $handler->handle($request);

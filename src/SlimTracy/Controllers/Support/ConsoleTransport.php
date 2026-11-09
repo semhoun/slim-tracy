@@ -11,7 +11,7 @@ use SlimTracy\Helpers\Console\WebConsoleRPCServer;
 final class ConsoleTransport
 {
     /**
-     * @param array<string, scalar|array|object|null> $config
+     * @param array<string, scalar|array|object|null> $config Host console authentication and directory settings.
      *
      * @return array<int|string, array|bool|float|int|\stdClass|string|null>
      */
@@ -32,6 +32,7 @@ final class ConsoleTransport
         );
     }
 
+    /** Read the legacy rawRequest override or the unmodified request body. */
     private static function input(ServerRequestInterface $request): string
     {
         $input = $request->getQueryParams()['rawRequest'] ?? (string) $request->getBody();

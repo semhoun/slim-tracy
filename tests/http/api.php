@@ -38,8 +38,17 @@ AppFactory::setContainer($container);
 AppFactory::setResponseFactory(new Psr17Factory());
 $app = AppFactory::create();
 Debugger::getBar()->addPanel(new class implements Tracy\IBarPanel {
-    public function getTab(): string { return '<span>SECRET_HOST_PANEL</span>'; }
-    public function getPanel(): string { return '<h1>SECRET_HOST_PANEL</h1>'; }
+    /** Return the sentinel tab used to detect host-panel leakage. */
+    public function getTab(): string
+    {
+        return '<span>SECRET_HOST_PANEL</span>';
+    }
+
+    /** Return the sentinel body used to detect host-panel leakage. */
+    public function getPanel(): string
+    {
+        return '<h1>SECRET_HOST_PANEL</h1>';
+    }
 }, 'fixture-host-secret');
 
 $app->get('/health', function ($request, $response) {
@@ -69,7 +78,8 @@ $app->get('/error', function (): never {
 });
 $app->get('/{page:twig|loader}', function ($request, $response) {
     $twig = new Twig\Environment(new Twig\Loader\ArrayLoader([
-        'page' => '<!doctype html><html><head><title>Twig fixture</title></head><body><h1>{{ title }}</h1></body></html>',
+        'page' => '<!doctype html><html><head><title>Twig fixture</title></head>'
+            . '<body><h1>{{ title }}</h1></body></html>',
     ]));
     $html = $twig->render('page', ['title' => 'Real Twig page']);
     if ($request->getUri()->getPath() === '/loader') {
@@ -98,7 +108,10 @@ $app->add(function (ServerRequestInterface $request, RequestHandlerInterface $ha
     $response = $request->getMethod() === 'OPTIONS' && !str_starts_with($request->getUri()->getPath(), '/_tracy/')
         ? $app->getResponseFactory()->createResponse(204)
         : $handler->handle($request);
-    if ($request->getHeaderLine('Origin') === 'http://127.0.0.1:8782' && !str_starts_with($request->getUri()->getPath(), '/_tracy/')) {
+    if (
+        $request->getHeaderLine('Origin') === 'http://127.0.0.1:8782'
+        && !str_starts_with($request->getUri()->getPath(), '/_tracy/')
+    ) {
         return $response->withHeader('Access-Control-Allow-Origin', 'http://127.0.0.1:8782')
             ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
             ->withHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
@@ -109,7 +122,11 @@ $app->add(function (ServerRequestInterface $request, RequestHandlerInterface $ha
 });
 $factory = new Psr17Factory();
 parse_str($_SERVER['QUERY_STRING'] ?? '', $query);
-$request = $factory->createServerRequest($_SERVER['REQUEST_METHOD'], 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], $_SERVER)
+$request = $factory->createServerRequest(
+    $_SERVER['REQUEST_METHOD'],
+    'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'],
+    $_SERVER
+)
     ->withQueryParams($query)
     ->withBody($factory->createStream(file_get_contents('php://input')));
 foreach (getallheaders() as $name => $value) {

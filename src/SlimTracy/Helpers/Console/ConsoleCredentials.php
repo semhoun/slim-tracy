@@ -9,7 +9,13 @@ use SlimTracy\Exceptions\IncorrectUserOrPassword;
 /** Verify user credentials before issuing a console session token. */
 final readonly class ConsoleCredentials
 {
-    /** @param array<string, string> $accounts */
+    /**
+     * @param array<string, string> $accounts Usernames mapped to configured password hashes.
+     *
+     * Preserve the public hash-algorithm parameter name for named arguments.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
+     */
     public function __construct(private array $accounts, private string $passwordHashAlgorithm)
     {
     }

@@ -27,6 +27,7 @@ use Tests\BaseTestCase;
  */
 class VendorVersionsPanelTest extends BaseTestCase
 {
+    /** Verify a panel without a project path still renders its identity. */
     public function testVendorVersionsPanel()
     {
         $panel = new \SlimTracy\Helpers\VendorVersionsPanel();
@@ -39,6 +40,7 @@ class VendorVersionsPanelTest extends BaseTestCase
         unset($panel);
     }
 
+    /** Verify package data is rendered consistently across repeated calls. */
     public function testVendorVersionsPanelWithData()
     {
         $path = realpath(__DIR__ . '/../../../');
@@ -51,6 +53,7 @@ class VendorVersionsPanelTest extends BaseTestCase
         $this->assertFalse(function_exists('h'));
     }
 
+    /** Verify directory validation reports missing projects and lock files. */
     public function testVendorVersionsPanelComposerDirectory()
     {
         // normal path, error empty
@@ -71,6 +74,11 @@ class VendorVersionsPanelTest extends BaseTestCase
         $this->assertStringEndsWith('does not contain the composer.lock file.', $panel->getError());
     }
 
+    /**
+     * Exercise the static Composer document reader with valid and malformed fixtures.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testVendorVersionsPanelDecode()
     {
         // normal file
@@ -96,6 +104,7 @@ class VendorVersionsPanelTest extends BaseTestCase
         $this->assertStringStartsWith('Syntax error', $result['error']);
     }
 
+    /** Verify a missing optional Composer document returns no data or error. */
     public function testVendorVersionsPanelDecodeWarning()
     {
         // no file

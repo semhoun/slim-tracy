@@ -14,7 +14,7 @@ final class ConsoleCommandEnvironment
     }
 
     /**
-     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment
+     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment Client state.
      *
      * @return array<string, array|string>|null
      */

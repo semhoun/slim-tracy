@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,23 +16,42 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Displays Eloquent queries, bindings, and aggregate execution time. */
 final class EloquentORMPanel implements IBarPanel
 {
+    /**
+     * @var integer Number of collected queries.
+     */
     private readonly int $count;
 
+    /**
+     * @var string Rendered query table rows.
+     */
     private readonly string $parsed;
 
+    /**
+     * @var integer|float|null Aggregate query duration in milliseconds after parsing.
+     */
     private int|float|null $time = null;
 
+    /**
+     * @var string|null Eloquent icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
     /**
-     * @param array<array{time: int|float, query: string, bindings: array<scalar|null>}> $data
-     * @param array<string, string> $ver
+     * Prepares the collected Eloquent queries for display.
+     *
+     * @param array                 $data Query log records with millisecond timings.
+     * @param array<string, string> $ver  Framework version labels.
+     *
+     * @phpstan-param array<array{time: int|float, query: string, bindings: array<scalar|null>}> $data
      */
     public function __construct(array $data = [], private array $ver = [])
     {
@@ -42,6 +59,11 @@ final class EloquentORMPanel implements IBarPanel
         $this->parsed = $this->parse($data);
     }
 
+    /**
+     * Renders the query count and total duration.
+     *
+     * @return string Eloquent toolbar summary HTML.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/EloquentORMPanel.html');
@@ -52,6 +74,11 @@ final class EloquentORMPanel implements IBarPanel
         </span>';
     }
 
+    /**
+     * Renders the query log and timing totals.
+     *
+     * @return string Eloquent query table HTML.
+     */
     public function getPanel(): string
     {
         return '
@@ -68,17 +95,35 @@ final class EloquentORMPanel implements IBarPanel
         </div>';
     }
 
+    /**
+     * Builds the query table column headings.
+     *
+     * @return string Table header HTML for counts, timings, and bindings.
+     */
     private function getHeader(): string
     {
         return '<thead><tr><th><b>Count</b></th><th><b>Time,&nbsp;ms</b></th><th>Query / Bindings</th></tr></thead>';
     }
 
+    /**
+     * Provides the format used for each query row.
+     *
+     * @return string HTML format with count, duration, and query placeholders.
+     */
     private function getBaseRow(): string
     {
         return '<tr><td>%s</td><td>%s</td><td>%s</td></tr>';
     }
 
-    /** @param array<array{time: int|float, query: string, bindings: array<scalar|null>}> $data */
+    /**
+     * Renders query rows and accumulates their execution time.
+     *
+     * @param array $data Query log records with millisecond timings.
+     *
+     * @return string Table header and query rows without the totals row.
+     *
+     * @phpstan-param array<array{time: int|float, query: string, bindings: array<scalar|null>}> $data
+     */
     private function parse(array $data): string
     {
         $return = $this->getHeader();

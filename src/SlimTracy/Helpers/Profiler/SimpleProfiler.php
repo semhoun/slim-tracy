@@ -44,6 +44,7 @@ abstract class SimpleProfiler
 
     protected static bool $enabled = false;
 
+    /** Nested measurements for the current enabled session. */
     protected static ProfilingSession $session;
 
     /**

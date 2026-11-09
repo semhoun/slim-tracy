@@ -12,7 +12,13 @@ final readonly class JsonRpcProtocol
     {
     }
 
-    /** @return array<string|int, array|bool|float|int|\stdClass|string|null> */
+    /**
+     * Construct protocol errors through the shared stateless envelope factory.
+     *
+     * @return array<string|int, array|bool|float|int|\stdClass|string|null>
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function execute(string $input, string $requestMethod): array
     {
         if ($requestMethod !== 'POST') {

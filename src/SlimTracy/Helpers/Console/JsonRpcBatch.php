@@ -13,9 +13,13 @@ final readonly class JsonRpcBatch
     }
 
     /**
-     * @param list<array|bool|float|int|\stdClass|string|null> $calls
+     * @param list<array|bool|float|int|\stdClass|string|null> $calls Decoded calls in the request batch.
      *
      * @return array<string|int, array|bool|float|int|\stdClass|string|null>
+     *
+     * Invalid batches use the shared stateless JSON-RPC error factory.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public function execute(JsonRpcDispatcher $dispatcher, array $calls): array
     {

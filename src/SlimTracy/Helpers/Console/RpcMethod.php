@@ -7,7 +7,11 @@ namespace SlimTracy\Helpers\Console;
 /** A public, non-infrastructure service method authorized for JSON-RPC invocation. */
 final readonly class RpcMethod
 {
-    /** Reject reflection handles that bypass the service registry's visibility boundary. */
+    /**
+     * Reject reflection handles using the registry's shared stateless visibility policy.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function __construct(private object $instance, private \ReflectionMethod $method)
     {
         if (! $method->isPublic() || RpcMethodRegistry::isHidden($method->getName())) {
@@ -22,7 +26,7 @@ final readonly class RpcMethod
     }
 
     /**
-     * @param array<string|int, array|bool|float|int|\stdClass|string|null> $params
+     * @param array<string|int, array|bool|float|int|\stdClass|string|null> $params Validated invocation arguments.
      *
      * @return array<string|int, array|bool|float|int|\stdClass|string|null>
      */

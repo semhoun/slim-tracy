@@ -7,7 +7,13 @@ namespace SlimTracy\Helpers\Console;
 /** Invoke a validated public service method and construct its result or error envelope. */
 final class JsonRpcInvocation
 {
-    /** @return array<string, array|bool|float|int|\stdClass|string|null>|null */
+    /**
+     * Construct errors through the shared stateless JSON-RPC envelope factory.
+     *
+     * @return array<string, array|bool|float|int|\stdClass|string|null>|null
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function invoke(\stdClass $call, RpcMethod $method): ?array
     {
         $params = $call->params ?? null;

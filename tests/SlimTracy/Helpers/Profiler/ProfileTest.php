@@ -27,24 +27,26 @@ use SlimTracy\Helpers\Profiler\Profile;
 #[\PHPUnit\Framework\Attributes\CoversClass(Profile::class)]
 class ProfileTest extends \PHPUnit\Framework\TestCase
 {
+    /** Verify explicit measurements take precedence over similarly named metadata. */
     public function testProfile()
     {
-        $p = new Profile(['label' => 'request', 'duration' => 999], 0.05, 0.03, 640, 1024);
-        $this->assertSame(0.05, $p->absoluteDuration());
-        $this->assertSame(0.03, $p->duration());
-        $this->assertSame(640, $p->absoluteMemoryUsageChange());
-        $this->assertSame(1024, $p->memoryUsageChange());
-        $this->assertSame(['label' => 'request', 'duration' => 999], $p->metadata());
+        $profile = new Profile(['label' => 'request', 'duration' => 999], 0.05, 0.03, 640, 1024);
+        $this->assertSame(0.05, $profile->absoluteDuration());
+        $this->assertSame(0.03, $profile->duration());
+        $this->assertSame(640, $profile->absoluteMemoryUsageChange());
+        $this->assertSame(1024, $profile->memoryUsageChange());
+        $this->assertSame(['label' => 'request', 'duration' => 999], $profile->metadata());
         $this->assertSame([
             'label' => 'request',
             'duration' => 0.03,
             'absolute_duration' => 0.05,
             'absolute_memory_usage_change' => 640,
             'memory_usage_change' => 1024,
-        ], $p->jsonSerialize());
-        $this->assertSame($p->jsonSerialize(), json_decode(json_encode($p, JSON_THROW_ON_ERROR), true));
+        ], $profile->jsonSerialize());
+        $this->assertSame($profile->jsonSerialize(), json_decode(json_encode($profile, JSON_THROW_ON_ERROR), true));
     }
 
+    /** Verify modifying returned metadata cannot change the profile's own state. */
     public function testMetadataReadDoesNotExposeMutableState(): void
     {
         $profile = new Profile(['label' => 'original']);

@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2017 1f7.wizard@gmail.com.
  *
@@ -17,6 +15,8 @@ declare(strict_types=1);
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+declare(strict_types=1);
 
 namespace SlimTracy\Collectors;
 

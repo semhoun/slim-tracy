@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,14 +16,25 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Lists the PHP files included during the current request. */
 final class IncludedFiles implements IBarPanel
 {
+    /**
+     * @var string Included-files icon loaded while rendering the tab.
+     */
     private string $icon = '';
 
+    /**
+     * Renders the included-files toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the included-files panel.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/IncludedFiles.html');
@@ -36,6 +45,11 @@ final class IncludedFiles implements IBarPanel
         </span>';
     }
 
+    /**
+     * Lists included file paths in their inclusion order.
+     *
+     * @return string File table HTML with the total number of included files.
+     */
     public function getPanel(): string
     {
         $files = get_included_files();
@@ -57,11 +71,21 @@ final class IncludedFiles implements IBarPanel
         </div>';
     }
 
+    /**
+     * Builds the included-files table headings.
+     *
+     * @return string Table header HTML for sequence numbers and file paths.
+     */
     private function getHeader(): string
     {
         return '<thead><tr><th><b>Count</b></th><th>File</th></tr></thead>';
     }
 
+    /**
+     * Provides the format used for each included file.
+     *
+     * @return string HTML format with sequence-number and file-path placeholders.
+     */
     private function getBaseRow(): string
     {
         return '<tr><td>%s</td><td>%s</td></tr>';

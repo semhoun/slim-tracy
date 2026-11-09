@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,16 +16,34 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Displays installed Composer packages and requested version constraints. */
 final class VendorVersionsPanel implements IBarPanel
 {
+    /**
+     * @var string|null Most recent Composer directory or document error.
+     */
     private ?string $error;
 
+    /**
+     * @var string|null Resolved directory containing Composer project files.
+     */
     private readonly ?string $dir;
 
+    /**
+     * Resolves the Composer project directory for package inspection.
+     *
+     * ComposerDirectory is a stateless resolver with a public static API.
+     *
+     * @param string|null $composerLockDir Explicit project directory, or null for discovery.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function __construct(?string $composerLockDir = null)
     {
         $resolved = ComposerDirectory::resolve($composerLockDir);
@@ -35,11 +51,25 @@ final class VendorVersionsPanel implements IBarPanel
         $this->error = $resolved['error'];
     }
 
+    /**
+     * Renders the package-version toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the Composer package panel.
+     */
     public function getTab(): string
     {
         return (require __DIR__ . '/../Templates/VendorTab.phtml')([]);
     }
 
+    /**
+     * Loads package versions and renders their requested constraints.
+     *
+     * ComposerProject exposes stateless project loading through its public static API.
+     *
+     * @return string Package table HTML including any project-loading error.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function getPanel(): string
     {
         $jsonFile = $this->dir . \DIRECTORY_SEPARATOR . 'composer.json';
@@ -55,7 +85,11 @@ final class VendorVersionsPanel implements IBarPanel
         );
     }
 
-    // test case
+    /**
+     * Exposes the most recent project-loading error.
+     *
+     * @return string|null Error message, or null when project loading succeeded.
+     */
     public function getError(): ?string
     {
         return $this->error;

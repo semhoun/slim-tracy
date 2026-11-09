@@ -11,9 +11,16 @@ use SlimTracy\Middlewares\Support\NativeSessionIsolation;
 use Tracy\Debugger;
 use Tracy\FileSession;
 
+/** Verifies native storage selection using real incoming request globals. */
 #[RunTestsInSeparateProcesses]
 final class NativeSessionIsolationTest extends TestCase
 {
+    /**
+     * Bootstrap's static API must inspect the exact server and cookie boundary.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testApiRequestNeverOpensNativeCookieStorage(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -27,6 +34,12 @@ final class NativeSessionIsolationTest extends TestCase
         self::assertNull(Debugger::dispatch());
     }
 
+    /**
+     * Bootstrap's static API selects native storage from incoming navigation headers.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testDocumentNavigationRetainsNativeDeferredLoaderStorage(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -37,6 +50,12 @@ final class NativeSessionIsolationTest extends TestCase
         self::assertInstanceOf(FileSession::class, Debugger::getSessionStorage());
     }
 
+    /**
+     * Bootstrap's static API must preserve native dispatch from actual query globals.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testNativeHostContentRequestCanStillUseDeferredStorage(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -47,6 +66,12 @@ final class NativeSessionIsolationTest extends TestCase
         self::assertInstanceOf(FileSession::class, Debugger::getSessionStorage());
     }
 
+    /**
+     * Bootstrap's static API isolates the reserved URL from actual server globals.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testDebugDocumentAlwaysUsesIsolatedNonPersistentStorage(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -56,6 +81,12 @@ final class NativeSessionIsolationTest extends TestCase
         self::assertInstanceOf(NativeSessionIsolation::class, Debugger::getSessionStorage());
     }
 
+    /**
+     * Bootstrap's static API leaves native storage unchanged for an incoming API request.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testDisabledProfilerDoesNotReplaceHostNativeStorage(): void
     {
         Debugger::$productionMode = Debugger::Development;

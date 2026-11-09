@@ -12,7 +12,13 @@ final readonly class JsonRpcDispatcher
     {
     }
 
-    /** @return array<string, array|bool|float|int|\stdClass|string|null>|null */
+    /**
+     * Construct validation errors through the shared stateless envelope factory.
+     *
+     * @return array<string, array|bool|float|int|\stdClass|string|null>|null
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function dispatch(array|bool|float|int|\stdClass|string|null $call): ?array
     {
         if (! $call instanceof \stdClass) {

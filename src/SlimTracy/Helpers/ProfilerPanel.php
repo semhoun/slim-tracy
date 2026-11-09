@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use SlimTracy\Helpers\Profiler\Profile;
@@ -26,17 +26,27 @@ use SlimTracy\Helpers\Profiler\ProfilerService;
 use SlimTracy\Helpers\Profiler\SimpleProfiler;
 use Tracy\IBarPanel;
 
+/** Displays manually collected timing and memory profiles. */
 final readonly class ProfilerPanel implements IBarPanel
 {
+    /**
+     * @var ProfilerService Shared collection of manually recorded profiles.
+     */
     private ProfilerService $profilerService;
 
     /**
-     * @var array{primaryValue: string, show: array<string, bool>}
+     * @var array{primaryValue: string, show: array<string, bool>} Resolved chart and memory display settings.
      */
     private array $config;
 
     /**
-     * @param array{primaryValue?: string, show?: array<string, bool>} $config
+     * Merges display overrides with the profiler defaults.
+     *
+     * ProfilerService's singleton accessor supplies the same shared collection used by the static profiler facade.
+     *
+     * @param array{primaryValue?: string, show?: array<string, bool>} $config Chart and memory display overrides.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public function __construct(array $config = [])
     {
@@ -45,9 +55,15 @@ final readonly class ProfilerPanel implements IBarPanel
     }
 
     /**
+     * Builds the default chart and memory display settings.
+     *
+     * The profiler's public static facade owns the shared memory measurement mode.
+     *
      * @internal
      *
-     * @return array{primaryValue: string, show: array<string, bool>}
+     * @return array{primaryValue: string, show: array<string, bool>} Defaults based on the memory measurement mode.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public static function getDefaultConfig(): array
     {
@@ -57,6 +73,15 @@ final readonly class ProfilerPanel implements IBarPanel
         ];
     }
 
+    /**
+     * Summarizes the number of manually recorded profiles.
+     *
+     * The profiler's public static facade owns the enabled state, not the profile collection service.
+     *
+     * @return string Toolbar HTML with the profile count or disabled state.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function getTab(): string
     {
         $count = count($this->profilerService->getProfiles());
@@ -66,6 +91,11 @@ final readonly class ProfilerPanel implements IBarPanel
         );
     }
 
+    /**
+     * Renders the profile charts and detail sections.
+     *
+     * @return string Profiler template HTML using the resolved display settings.
+     */
     public function getPanel(): string
     {
         $render = require __DIR__ . '/../Templates/profiler.phtml';
@@ -73,7 +103,9 @@ final readonly class ProfilerPanel implements IBarPanel
     }
 
     /**
-     * @return list<Profile>
+     * Collects profiles in the service's iteration order.
+     *
+     * @return list<Profile> Recorded profiles in display order.
      */
     private function profiles(): array
     {

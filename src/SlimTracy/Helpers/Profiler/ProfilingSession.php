@@ -25,7 +25,7 @@ final class ProfilingSession
     private readonly Closure $postProcessor;
 
     /**
-     * @param (callable(Profile): Profile)|null $postProcessor
+     * @param (callable(Profile): Profile)|null $postProcessor Transform each completed measurement.
      */
     public function __construct(?callable $postProcessor = null)
     {
@@ -33,11 +33,13 @@ final class ProfilingSession
         $this->postProcessor = $processor(...);
     }
 
+    /** Push a measurement onto the active nesting stack. */
     public function start(Profile $profile): void
     {
         $this->stack[] = $profile;
     }
 
+    /** Complete the innermost measurement and exclude its totals from its parent. */
     public function finish(?string $label, float $now, int $memoryUsage): Profile
     {
         if ($this->stack === []) {

@@ -15,7 +15,8 @@ if ($path === '/client.js') {
 }
 
 header('Content-Type: text/html; charset=utf-8');
-header("Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' http://127.0.0.1:8781 http://127.0.0.1:8783 http://127.0.0.1:8784 http://127.0.0.1:1");
+header("Content-Security-Policy: default-src 'self'; script-src 'self'; connect-src 'self' "
+    . 'http://127.0.0.1:8781 http://127.0.0.1:8783 http://127.0.0.1:8784 http://127.0.0.1:1');
 echo '<!doctype html><html><head><title>Separate-origin transport fixture</title>';
 echo '<script src="/client.js"></script></head><body><h1>Common client transport fixture</h1><div id="app"></div>';
 if ($path === '/vue' || $path === '/react') {

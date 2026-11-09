@@ -64,6 +64,7 @@
       "@phpunit"
     ],
     "phpunit": "php vendor/bin/phpunit",
+    "phpcs-check": "phpcs --standard=phpcs.xml",
     "rector-check": "rector process --dry-run",
     "rector-fix": "rector process",
     "insights-check": "phpinsights --config-path=./phpinsights.php",

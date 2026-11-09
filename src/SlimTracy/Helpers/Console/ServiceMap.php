@@ -8,7 +8,7 @@ namespace SlimTracy\Helpers\Console;
 final class ServiceMap
 {
     /**
-     * @param array<array-key, object> $instances
+     * @param array<array-key, object> $instances Service objects keyed by their RPC namespaces.
      *
      * @return array<string, array|string>
      */
@@ -28,7 +28,13 @@ final class ServiceMap
         return $result;
     }
 
-    /** @return array<string, array<string, array|string>> */
+    /**
+     * Apply the registry's shared stateless visibility policy to described methods.
+     *
+     * @return array<string, array<string, array|string>>
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     private function services(\ReflectionClass $class, string $namespace): array
     {
         $services = [];

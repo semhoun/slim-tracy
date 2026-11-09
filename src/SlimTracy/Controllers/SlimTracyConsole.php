@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Controllers;
 
 use Psr\Container\ContainerInterface;
@@ -29,10 +29,16 @@ use SlimTracy\Controllers\Support\ConsoleTransport;
 /** Adapts an explicit PSR-7 request to the console's JSON-RPC transport. */
 final readonly class SlimTracyConsole
 {
+    /** Use the host container to resolve the console's Tracy configuration. */
     public function __construct(private ContainerInterface $container)
     {
     }
 
+    /**
+     * Execute JSON-RPC using the stateless request and output adapters.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function index(Request $request, Response $response): Response
     {
         $config = $this->container->get('tracy.settings')['configs'];

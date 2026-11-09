@@ -26,7 +26,13 @@ use SlimTracy\Helpers\XDebugHelper;
 use Tracy\Dumper;
 use Tracy\IBarPanel as Panel;
 
-/** Keeps panel construction lazy and preserves the toolbar's registration order. */
+/**
+ * Keeps panel construction lazy and preserves the toolbar's registration order.
+ *
+ * This composition root centrally wires the known panel types; its coupling reflects that exhaustive registry.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
+ */
 final readonly class PanelRegistry
 {
     /** @param array<string, scalar|array|object|null> $config */
@@ -34,7 +40,18 @@ final readonly class PanelRegistry
     {
     }
 
-    /** @return array<string, Closure(): Panel> */
+    /**
+     * Builds lazy factories for the supported toolbar panels.
+     *
+     * Capsule exposes its shared query log through a static facade; WritableContainer is a stateless validator.
+     *
+     * @param ServerRequestInterface $request  Current request supplying panel details.
+     * @param ResponseInterface      $response Downstream response supplying panel details.
+     *
+     * @return array<string, Closure(): Panel> Panel factories keyed by their selection settings.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function factories(ServerRequestInterface $request, ResponseInterface $response): array
     {
         $container = WritableContainer::fromApp($this->app);
@@ -59,7 +76,18 @@ final readonly class PanelRegistry
         ];
     }
 
-    /** @return array<string, Closure(): Panel> */
+    /**
+     * Builds lazy factories for request, response, container, and route panels.
+     *
+     * Tracy's Dumper provides static HTML rendering; WritableContainer is a stateless validator.
+     *
+     * @param ServerRequestInterface $request  Current request supplying panel details.
+     * @param ResponseInterface      $response Downstream response supplying panel details.
+     *
+     * @return array<string, Closure(): Panel> Request-related panel factories in toolbar order.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     private function requestFactories(ServerRequestInterface $request, ResponseInterface $response): array
     {
         $container = WritableContainer::fromApp($this->app);

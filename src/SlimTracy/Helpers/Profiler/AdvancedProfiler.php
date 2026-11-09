@@ -15,8 +15,10 @@ namespace SlimTracy\Helpers\Profiler;
  */
 abstract class AdvancedProfiler extends SimpleProfiler
 {
+    /** Whether caller-labelled profiling currently accepts measurements. */
     protected static bool $enabled = false;
 
+    /** Nested measurements and result processing for this profiler. */
     protected static ProfilingSession $session;
 
     /**
@@ -49,11 +51,13 @@ abstract class AdvancedProfiler extends SimpleProfiler
         );
     }
 
+    /** Start a measurement, using the caller location when no label is supplied. */
     public static function start(?string $labelOrFormat = null, mixed ...$args): bool
     {
         return parent::start($labelOrFormat ?? static::getCurrentFileHashLine(1), ...$args);
     }
 
+    /** Complete the current measurement, defaulting its label to the caller location. */
     public static function finish(?string $labelOrFormat = null, mixed ...$args): Profile|false
     {
         return parent::finish($labelOrFormat ?? static::getCurrentFileHashLine(1), ...$args);

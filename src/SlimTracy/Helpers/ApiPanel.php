@@ -10,19 +10,31 @@ use Tracy\IBarPanel;
 /** Displays the shared development API request history. */
 final readonly class ApiPanel implements IBarPanel
 {
-    /** @param Configuration $configuration Effective profiler settings. */
+    /**
+     * Configures the shared API history view.
+     *
+     * @param Configuration $configuration Effective profiler settings.
+     */
     public function __construct(private Configuration $configuration)
     {
     }
 
-    /** Returns the toolbar label. */
+    /**
+     * Returns the toolbar label.
+     *
+     * @return string Toolbar HTML, or an empty string when profiling is disabled.
+     */
     public function getTab(): string
     {
         return $this->configuration->isEnabled()
             ? '<span title="Shared API profiles" data-slim-tracy-client' . $this->attributes() . '>API</span>' : '';
     }
 
-    /** Returns a text-only client view, populated after Tracy initialization. */
+    /**
+     * Returns a text-only client view, populated after Tracy initialization.
+     *
+     * @return string History container HTML, or an empty string when profiling is disabled.
+     */
     public function getPanel(): string
     {
         if (! $this->configuration->isEnabled()) {
@@ -33,7 +45,11 @@ final readonly class ApiPanel implements IBarPanel
             . $this->attributes() . '><p>Shared development history. Loading profiles...</p></div>';
     }
 
-    /** Keeps installation settings on the eagerly rendered tab and lazy panel consistent. */
+    /**
+     * Keeps installation settings on the eagerly rendered tab and lazy panel consistent.
+     *
+     * @return string Escaped HTML attributes shared by the tab and panel.
+     */
     private function attributes(): string
     {
         $path = htmlspecialchars($this->configuration->urlPath(), ENT_QUOTES);

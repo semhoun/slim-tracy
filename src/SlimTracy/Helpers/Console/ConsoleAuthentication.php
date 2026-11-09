@@ -7,7 +7,13 @@ namespace SlimTracy\Helpers\Console;
 /** Authenticate console credentials and stateless tokens. */
 final readonly class ConsoleAuthentication
 {
-    /** @param array<string, string> $accounts */
+    /**
+     * @param array<string, string> $accounts Usernames mapped to configured password hashes.
+     *
+     * Preserve the public hash-algorithm parameter name for named arguments.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
+     */
     public function __construct(
         private array $accounts = [],
         private bool $noLogin = false,

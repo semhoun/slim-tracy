@@ -26,6 +26,11 @@ use Tests\BaseTestCase;
  */
 class SlimRequestPanelTest extends BaseTestCase
 {
+    /**
+     * Render a real request through Tracy's public static dumper API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testSlimRequestPanel()
     {
         $app = $this->createApp();

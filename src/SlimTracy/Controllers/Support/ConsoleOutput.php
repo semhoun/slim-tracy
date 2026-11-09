@@ -8,7 +8,7 @@ namespace SlimTracy\Controllers\Support;
 final class ConsoleOutput
 {
     /**
-     * @param array<int|string, array|bool|float|int|\stdClass|string|null> $response
+     * @param array<int|string, array|bool|float|int|\stdClass|string|null> $response JSON-RPC result to normalize.
      *
      * @return array<int|string, array|bool|float|int|\stdClass|string|null>
      */

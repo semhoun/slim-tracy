@@ -19,6 +19,7 @@
 namespace Tests\SlimTracy\Helpers;
 
 use Tests\BaseTestCase;
+use Nyholm\Psr7\Response;
 
 /**
  * Class SlimRouterPanelTest
@@ -26,10 +27,11 @@ use Tests\BaseTestCase;
  */
 class SlimRouterPanelTest extends BaseTestCase
 {
+    /** Verify the router panel lists a named route and its pattern. */
     public function testSlimRouterPanel()
     {
         $app = $this->createApp();
-        $app->get('/hello/{name}', fn ($request, $response) => $response)->setName('hello');
+        $app->get('/hello/{name}', fn () => new Response())->setName('hello');
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [

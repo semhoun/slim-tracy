@@ -12,8 +12,10 @@ use SlimTracy\Collectors\DoctrineCollector;
 use SlimTracy\Collectors\DoctrineLogger\Queries;
 use Tests\BaseTestCase;
 
+/** Verifies optional Doctrine registration and DBAL query capture. */
 class DoctrineCollectorTest extends BaseTestCase
 {
+    /** Verify missing optional configuration leaves the container unchanged. */
     public function testMissingContainerOrServiceDoesNotRegisterCollector(): void
     {
         $this->assertInstanceOf(DoctrineCollector::class, new DoctrineCollector());
@@ -22,6 +24,11 @@ class DoctrineCollectorTest extends BaseTestCase
         $this->assertFalse($container->has('tracy.doctrineQueries'));
     }
 
+    /**
+     * Use DBAL's public static connection factory to exercise the middleware chain.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCollectorPreservesExistingMiddlewaresAndLogsDbalQueries(): void
     {
         $container = new Container();
@@ -47,6 +54,11 @@ class DoctrineCollectorTest extends BaseTestCase
         $this->assertGreaterThanOrEqual(0, $query['executionMS']);
     }
 
+    /**
+     * Use DBAL's public static factory to verify bound resources remain intact.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCollectorPreservesBoundLobResources(): void
     {
         $container = new Container();
@@ -76,6 +88,11 @@ class DoctrineCollectorTest extends BaseTestCase
         }
     }
 
+    /**
+     * Use DBAL's public static factory with a shared ORM configuration.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCollectorAcceptsSharedOrmConfiguration(): void
     {
         $configuration = new \Doctrine\ORM\Configuration();
@@ -91,6 +108,11 @@ class DoctrineCollectorTest extends BaseTestCase
         $this->assertCount(1, $container->get('tracy.doctrineQueries')->getQueries());
     }
 
+    /**
+     * A connection from DBAL's static factory is not a configuration service.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCollectorRejectsConnectionInsteadOfConfiguration(): void
     {
         $container = new Container();

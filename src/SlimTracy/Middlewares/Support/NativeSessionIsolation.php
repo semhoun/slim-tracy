@@ -17,7 +17,16 @@ final class NativeSessionIsolation implements SessionStorage
     /** @var array<string, mixed> Non-persistent native scratch data, never API profiles. */
     private array $data = [];
 
-    /** Preserve native deferred HTML assets, but never open their session for API calls. */
+    /**
+     * Preserves native deferred HTML assets, but never opens their session for API calls.
+     *
+     * Tracy's static storage setter must run before enable(). Native globals select isolation before PSR-7 exists.
+     *
+     * @param Configuration $configuration Effective profiler settings and reserved route prefix.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public static function configure(Configuration $configuration): void
     {
         if (! $configuration->isEnabled() || self::$installed) {

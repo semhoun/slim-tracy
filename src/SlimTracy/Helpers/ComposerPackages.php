@@ -8,10 +8,16 @@ namespace SlimTracy\Helpers;
 final class ComposerPackages
 {
     /**
-     * @param list<array{name: string, version: string, source?: array{reference?: string, url?: string}}> $packages
-     * @param array<string, string> $required
+     * Combines installed package details with requested version constraints.
+     *
+     * @param array                 $packages Package records from the Composer lock file.
+     * @param array<string, string> $required Root project version constraints keyed by package name.
      *
      * @return array<string, object{installed: string, required: string|null, url: string|null}&\stdClass>
+     *     Installed versions, requested constraints, and source URLs sorted by package name.
+     *
+     * @phpstan-param list<array{name: string, version: string,
+     *     source?: array{reference?: string, url?: string}}> $packages
      */
     public static function describe(array $packages, array $required): array
     {

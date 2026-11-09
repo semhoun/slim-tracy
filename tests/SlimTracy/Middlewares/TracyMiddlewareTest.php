@@ -26,9 +26,11 @@ use Tests\BaseTestCase;
 use Tracy\Debugger;
 use Twig\Profiler\Profile;
 
+/** Verifies panel selection, optional collectors, and middleware lifecycle ordering. */
 #[RunTestsInSeparateProcesses]
 class TracyMiddlewareTest extends BaseTestCase
 {
+    /** Verify selected panels and optional collectors in a complete Slim request. */
     public function testTracyMiddleware(): void
     {
         $app = $this->createApp();
@@ -49,14 +51,21 @@ class TracyMiddlewareTest extends BaseTestCase
         $this->assertSame($settings, $container->get('tracy.settings'));
         $this->assertCount(1, $configuration->getMiddlewares());
 
-        $app->get('/hello/{name}', function (ServerRequestInterface $request, ResponseInterface $response, array $args) use ($configuration, $capsule) {
+        $app->get('/hello/{name}', function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) use (
+            $configuration,
+            $capsule
+        ) {
             $connection = DriverManager::getConnection(['driver' => 'pdo_sqlite', 'memory' => true], $configuration);
             $connection->fetchOne('SELECT 1');
             $capsule->getConnection()->select('SELECT 2');
             $response->getBody()->write('<html><body>Hello, ' . $args['name'] . '</body></html>');
             return $response->withHeader('Content-Type', 'text/html');
         });
-        $panels = array_keys(array_filter($settings, fn ($value, $key) => $key !== 'configs', ARRAY_FILTER_USE_BOTH));
+        $panels = array_keys(array_filter($settings, fn ($key) => $key !== 'configs', ARRAY_FILTER_USE_KEY));
         $panels = array_unique(array_merge($panels, [
             'showTwigPanel', 'showEloquentORMPanel', 'showPhpInfoPanel', 'showSlimRouterPanel',
             'showSlimEnvironmentPanel', 'showSlimContainer', 'showProfilerPanel', 'showVendorVersionsPanel',
@@ -69,18 +78,25 @@ class TracyMiddlewareTest extends BaseTestCase
         $this->assertStringContainsString('Hello, World', (string) $response->getBody());
         $this->assertCount(1, $container->get('tracy.doctrineQueries')->getQueries());
         $this->assertCount(1, $capsule->getConnection()->getQueryLog());
-        foreach ([\SlimTracy\Helpers\DoctrinePanel::class, \SlimTracy\Helpers\TwigPanel::class,
-            \SlimTracy\Helpers\EloquentORMPanel::class, \SlimTracy\Helpers\PanelSelector::class] as $panel) {
+        foreach (
+            [\SlimTracy\Helpers\DoctrinePanel::class, \SlimTracy\Helpers\TwigPanel::class,
+            \SlimTracy\Helpers\EloquentORMPanel::class, \SlimTracy\Helpers\PanelSelector::class] as $panel
+        ) {
             $this->assertInstanceOf($panel, Debugger::getBar()->getPanel($panel));
         }
     }
 
+    /** Verify default settings apply when no selection cookie is supplied. */
     public function testTracyMiddlewareWithoutCookies(): void
     {
         $app = $this->createApp();
         Debugger::$showBar = true;
         $app->add(new TracyMiddleware($app, $this->cfg['settings']['tracy']));
-        $app->get('/hello/{name}', function (ServerRequestInterface $request, ResponseInterface $response, array $args) {
+        $app->get('/hello/{name}', function (
+            ServerRequestInterface $request,
+            ResponseInterface $response,
+            array $args
+        ) {
             $response->getBody()->write('Hello, ' . $args['name']);
             return $response;
         });
@@ -91,6 +107,7 @@ class TracyMiddlewareTest extends BaseTestCase
         $this->assertFalse($app->getContainer()->has('tracy.doctrineQueries'));
     }
 
+    /** Verify direct middleware invocation preserves the handler response. */
     public function testTracyMiddlewareDirectly(): void
     {
         Debugger::$showBar = true;
@@ -102,6 +119,11 @@ class TracyMiddlewareTest extends BaseTestCase
         $this->assertSame($response, $middleware->process($request, $handler));
     }
 
+    /**
+     * Inspect Tracy's public static bar accessor after cookie-based panel selection.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCookieOverridesSettingsAndMissingIntegrationsAreIgnored(): void
     {
         $app = $this->createApp();
@@ -118,13 +140,16 @@ class TracyMiddlewareTest extends BaseTestCase
         $handler->expects($this->once())->method('handle')->with($request)->willReturn($response);
         $this->assertSame($response, $middleware->process($request, $handler));
         $bar = Debugger::getBar();
-        $this->assertInstanceOf(\SlimTracy\Helpers\SlimRequestPanel::class,
-            $bar->getPanel(\SlimTracy\Helpers\SlimRequestPanel::class));
+        $this->assertInstanceOf(
+            \SlimTracy\Helpers\SlimRequestPanel::class,
+            $bar->getPanel(\SlimTracy\Helpers\SlimRequestPanel::class)
+        );
         $this->assertNull($bar->getPanel(\SlimTracy\Helpers\SlimResponsePanel::class));
         $this->assertNull($bar->getPanel(\SlimTracy\Helpers\TwigPanel::class));
         $this->assertNull($bar->getPanel(\SlimTracy\Helpers\DoctrinePanel::class));
     }
 
+    /** Verify disabled bars do not register collectors or container settings. */
     public function testDisabledBarPassesThroughWithoutRegisteringCollectors(): void
     {
         $app = $this->createApp();
@@ -139,6 +164,7 @@ class TracyMiddlewareTest extends BaseTestCase
         $this->assertFalse($app->getContainer()->has('tracy.settings'));
     }
 
+    /** Verify invalid selection cookies fall back to default panels. */
     #[DataProvider('invalidPanelCookies')]
     public function testInvalidCookieFallsBackToDefaults(string|array $cookie): void
     {
@@ -156,11 +182,13 @@ class TracyMiddlewareTest extends BaseTestCase
         self::assertInstanceOf(SlimResponsePanel::class, Debugger::getBar()->getPanel(SlimResponsePanel::class));
     }
 
+    /** Supply malformed and unsupported panel selection cookie values. */
     public static function invalidPanelCookies(): array
     {
         return [['invalid JSON'], ['null'], ['false'], ['"showTwigPanel"'], ['[]'], [['unexpected array']]];
     }
 
+    /** Verify cookies and no-login settings cannot override a disabled console. */
     public function testDisabledConsoleCannotBeEnabledByCookieOrNoLogin(): void
     {
         Debugger::$showBar = true;
@@ -176,9 +204,13 @@ class TracyMiddlewareTest extends BaseTestCase
         $middleware->process($request, $handler);
 
         self::assertNull(Debugger::getBar()->getPanel(ConsolePanel::class));
-        self::assertStringNotContainsString('showConsolePanel', Debugger::getBar()->getPanel(PanelSelector::class)->getPanel());
+        self::assertStringNotContainsString(
+            'showConsolePanel',
+            Debugger::getBar()->getPanel(PanelSelector::class)->getPanel()
+        );
     }
 
+    /** Verify optional service factories remain lazy when unselected. */
     public function testUnselectedFactoriesDoNotResolveOptionalServices(): void
     {
         Debugger::$showBar = true;
@@ -198,6 +230,7 @@ class TracyMiddlewareTest extends BaseTestCase
         self::assertInstanceOf(SlimRequestPanel::class, Debugger::getBar()->getPanel(SlimRequestPanel::class));
     }
 
+    /** Verify a missing container produces an actionable error. */
     public function testMissingContainerHasClearError(): void
     {
         Debugger::$showBar = true;
@@ -208,6 +241,7 @@ class TracyMiddlewareTest extends BaseTestCase
         new TracyMiddleware($app, $this->cfg['settings']['tracy']);
     }
 
+    /** Reject a read-only container without resolving its services. */
     public function testReadOnlyContainerHasClearErrorWithoutResolvingServices(): void
     {
         Debugger::$showBar = true;
@@ -221,6 +255,7 @@ class TracyMiddlewareTest extends BaseTestCase
         new TracyMiddleware($app, $this->cfg['settings']['tracy']);
     }
 
+    /** Verify disabled bars do not require a writable container. */
     public function testDisabledBarDoesNotRequireContainerAndStaysInactive(): void
     {
         $settings = $this->cfg['settings']['tracy'];
@@ -236,6 +271,7 @@ class TracyMiddlewareTest extends BaseTestCase
         self::assertNull(Debugger::getBar()->getPanel(PanelSelector::class));
     }
 
+    /** Verify panel factory enumeration is ordered and lazy. */
     public function testFactoriesPreservePanelOrderWithoutConstructingPanels(): void
     {
         $registry = new PanelRegistry($this->createApp(), []);
@@ -252,6 +288,7 @@ class TracyMiddlewareTest extends BaseTestCase
         self::assertNull(Debugger::getBar()->getPanel(SlimRequestPanel::class));
     }
 
+    /** Verify every visible console selection remains checked in the selector. */
     #[\PHPUnit\Framework\Attributes\DataProvider('consoleSelectionCases')]
     public function testVisibleConsoleRemainsCheckedInThePanelSelector(
         int $configured,
@@ -280,6 +317,7 @@ class TracyMiddlewareTest extends BaseTestCase
         );
     }
 
+    /** Supply settings, cookie, and no-login console selections. */
     public static function consoleSelectionCases(): array
     {
         return [
@@ -289,6 +327,7 @@ class TracyMiddlewareTest extends BaseTestCase
         ];
     }
 
+    /** Verify panel registration happens after the application handler. */
     public function testPanelsAreRegisteredOnlyAfterTheHandlerReturns(): void
     {
         Debugger::$showBar = true;

@@ -9,9 +9,11 @@ use PHPUnit\Framework\TestCase;
 use SlimTracy\Profiling\StructuredExporter;
 use Tracy\Debugger;
 
+/** Verifies optional integrations remain optional when their autoloaders are absent. */
 #[RunTestsInSeparateProcesses]
 final class OptionalProfilerDependenciesTest extends TestCase
 {
+    /** Verify a library-only autoloader can export without Doctrine, Eloquent, or Twig. */
     public function testExportWorksWithoutAnyOptionalIntegrationAutoloader(): void
     {
         Debugger::$productionMode = Debugger::Development;

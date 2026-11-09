@@ -18,6 +18,16 @@ final readonly class PanelRegistration
     {
     }
 
+    /**
+     * Adds available, selected panels after the downstream response is complete.
+     *
+     * Tracy exposes its shared bar statically; selection, availability, and container helpers are stateless policies.
+     *
+     * @param ServerRequestInterface $request  Current request containing the panel-selection cookie.
+     * @param ResponseInterface      $response Completed response to describe in the toolbar.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function register(ServerRequestInterface $request, ResponseInterface $response): void
     {
         $config = $this->settings['configs'] ?? [];

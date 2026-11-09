@@ -22,15 +22,19 @@ final readonly class Routes
     ) {
     }
 
-    /** @param array<string, string> $arguments Matched route parameters, never filesystem paths. */
+    /**
+     * Guard every endpoint before dispatch, using the shared stateless CORS policy.
+     *
+     * @param array<string, string> $arguments Matched route parameters, never filesystem paths.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function __invoke(
         ServerRequestInterface $request,
         ResponseInterface $response,
         array $arguments
     ): ResponseInterface {
         $configuration = $this->configuration;
-        $store = $this->store;
-        $debugPage = $this->debugPage;
         $response = $response->withHeader('Cache-Control', 'no-store');
         if (! $configuration->isEnabled()) {
             return $this->json($response, ['error' => 'Not found'], 404);
@@ -46,30 +50,7 @@ final readonly class Routes
         }
 
         try {
-            $path = rawurldecode($request->getUri()->getPath());
-            if ($path === rawurldecode($configuration->urlPath()) && $request->getMethod() === 'GET') {
-                $native = $request->getQueryParams()['_tracy_bar'] ?? null;
-                if ($native !== null && $native !== 'js') {
-                    return $this->json($response, ['error' => 'Not found'], 404);
-                }
-
-                return $debugPage($request, $response)->withHeader('Cache-Control', 'no-store');
-            }
-
-            if ($request->getMethod() === 'POST') {
-                return $this->browser($request, $response, $store);
-            }
-
-            if (isset($arguments['id'])) {
-                $profile = $store->get($arguments['id']);
-                return $profile === null ? $this->json($response, ['error' => 'Not found'], 404)
-                    : $this->json($response, $profile);
-            }
-
-            $query = $request->getQueryParams();
-            $after = is_string($query['after'] ?? null) ? substr($query['after'], 0, 100) : null;
-            $limit = filter_var($query['limit'] ?? 50, FILTER_VALIDATE_INT);
-            return $this->json($response, ['schemaVersion' => 1] + $store->listing($after, $limit ? $limit : 50));
+            return $this->dispatch($request, $response, $arguments);
         } catch (Throwable) {
             error_log('SlimTracy API profiler endpoint unavailable.');
             return $this->json($response, ['error' => 'Profiler unavailable'], 503);
@@ -86,11 +67,49 @@ final readonly class Routes
         $configuration = $configuration->withBasePath($app->getBasePath());
         $store ??= new FileStore($configuration);
         $debugPage ??= new ApiDebugPage($configuration);
-        $dispatch = new self($configuration, $store, Closure::fromCallable($debugPage));
+        $dispatch = new self($configuration, $store, $debugPage(...));
         $app->map(['GET', 'OPTIONS'], $configuration->path, $dispatch);
         $app->map(['GET', 'OPTIONS'], $configuration->path . '/profiles', $dispatch);
         $app->map(['GET', 'OPTIONS'], $configuration->path . '/profiles/{id}', $dispatch);
         $app->map(['POST', 'OPTIONS'], $configuration->path . '/browser', $dispatch);
+    }
+
+    /** @param array<string, string> $arguments Validated route parameters. */
+    private function dispatch(
+        ServerRequestInterface $request,
+        ResponseInterface $response,
+        array $arguments
+    ): ResponseInterface {
+        $path = rawurldecode($request->getUri()->getPath());
+        if ($path === rawurldecode($this->configuration->urlPath()) && $request->getMethod() === 'GET') {
+            $native = $request->getQueryParams()['_tracy_bar'] ?? null;
+            if ($native !== null && $native !== 'js') {
+                return $this->json($response, ['error' => 'Not found'], 404);
+            }
+
+            return ($this->debugPage)($request, $response)->withHeader('Cache-Control', 'no-store');
+        }
+
+        if ($request->getMethod() === 'POST') {
+            return $this->browser($request, $response, $this->store);
+        }
+
+        if (isset($arguments['id'])) {
+            $profile = $this->store->get($arguments['id']);
+            return $profile === null ? $this->json($response, ['error' => 'Not found'], 404)
+                : $this->json($response, $profile);
+        }
+
+        return $this->listing($request, $response);
+    }
+
+    /** Return the next bounded page without consuming stored snapshots. */
+    private function listing(ServerRequestInterface $request, ResponseInterface $response): ResponseInterface
+    {
+        $query = $request->getQueryParams();
+        $after = is_string($query['after'] ?? null) ? substr($query['after'], 0, 100) : null;
+        $limit = filter_var($query['limit'] ?? 50, FILTER_VALIDATE_INT);
+        return $this->json($response, ['schemaVersion' => 1] + $this->store->listing($after, $limit ? $limit : 50));
     }
 
     /** Accept bounded client declarations, never arbitrary fields or bodies. */
@@ -109,38 +128,13 @@ final readonly class Routes
             return $this->json($response, ['error' => 'Telemetry too large'], 413);
         }
 
-        $data = json_decode($body, true, 8);
-        $duration = is_array($data) ? ($data['durationMs'] ?? null) : null;
-        if (
-            ! is_array($data) || ! is_string($data['id'] ?? null)
-            || ! preg_match('/^[a-f0-9]{32}$/D', $data['id'])
-            || (! is_int($duration) && ! is_float($duration)) || ! is_finite((float) $duration)
-            || $duration < 0 || $duration > 86400000
-            || (isset($data['schemaVersion']) && $data['schemaVersion'] !== 1)
-        ) {
+        $telemetry = (new BrowserTelemetry())->parse($body);
+        if ($telemetry === null) {
             return $this->json($response, ['error' => 'Invalid telemetry'], 400);
         }
 
-        $browser = ['durationMs' => $duration];
-        if (in_array($data['outcome'] ?? null, ['complete', 'network-error', 'aborted'], true)) {
-            $browser['outcome'] = $data['outcome'];
-        }
-
-        if (is_string($data['method'] ?? null)) {
-            $browser['method'] = StructuredExporter::text($data['method'], 32);
-        }
-
-        if (is_string($data['path'] ?? null)) {
-            $path = parse_url($data['path'], PHP_URL_PATH);
-            $browser['path'] = StructuredExporter::text(is_string($path) ? $path : '', 1024);
-        }
-
-        $status = $data['status'] ?? null;
-        if ($status === null || (is_int($status) && $status >= 100 && $status <= 599)) {
-            $browser['status'] = $data['status'] ?? null;
-        }
-
-        return $store->attachBrowser($data['id'], $browser) ? $this->json($response, ['accepted' => true], 202)
+        return $store->attachBrowser($telemetry['id'], $telemetry['browser'])
+            ? $this->json($response, ['accepted' => true], 202)
             : $this->json($response, ['error' => 'Not found'], 404);
     }
 

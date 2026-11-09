@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,14 +16,26 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
+use DOMDocument;
 use Tracy\IBarPanel;
 
+/** Embeds PHP configuration information in the Tracy toolbar. */
 final class PhpInfoPanel implements IBarPanel
 {
+    /**
+     * @var string|null PHP icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
+    /**
+     * Renders the PHP information toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the PHP information panel.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/PhpInfoPanel.html');
@@ -36,6 +46,11 @@ final class PhpInfoPanel implements IBarPanel
         </span>';
     }
 
+    /**
+     * Captures PHP configuration output and removes its images.
+     *
+     * @return string Panel HTML containing the PHP information body.
+     */
     public function getPanel(): string
     {
         ob_start();
@@ -48,7 +63,7 @@ final class PhpInfoPanel implements IBarPanel
         // suppress warnings
         libxml_use_internal_errors(true);
 
-        $domDocument = new \DOMDocument();
+        $domDocument = new DOMDocument();
         $domDocument->loadHTML($phpInfo);
 
         $body = $domDocument->getElementsByTagName('body')->item(0);
@@ -59,6 +74,14 @@ final class PhpInfoPanel implements IBarPanel
         ]);
     }
 
+    /**
+     * Removes matching descendants from the captured PHP information body.
+     *
+     * @param string      $tagName  Element name to remove.
+     * @param \DOMElement $document Root element whose descendants are searched.
+     *
+     * @return void Matching descendants are removed from the supplied element in place.
+     */
     private function removeElementsByTagName(string $tagName, \DOMElement $document): void
     {
         $nodeList = $document->getElementsByTagName($tagName);

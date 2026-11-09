@@ -4,56 +4,78 @@ declare(strict_types=1);
 
 namespace SlimTracy\Profiling;
 
+use Closure;
 use Illuminate\Database\Capsule\Manager;
 use Illuminate\Database\Connection;
 use Psr\Container\ContainerInterface;
 use SlimTracy\Collectors\DoctrineLogger\Queries;
 use SlimTracy\Helpers\Profiler\Profiler;
 use SlimTracy\Helpers\Profiler\ProfilerService;
+use Throwable;
 use Twig\Profiler\Profile;
+use WeakMap;
 
-/** Allowlist-only collector snapshots: bindings and arbitrary metadata never leave the process. */
+/**
+ * Allowlist-only collector snapshots: bindings and arbitrary metadata never leave the process.
+ *
+ * This optional-integration boundary deliberately retains concrete collector type guards;
+ * its dependencies cover DBAL, Eloquent, Twig and manual profiling without serializing unknown objects.
+ *
+ * @SuppressWarnings(PHPMD.CouplingBetweenObjects)
+ */
 final class StructuredExporter
 {
     /** @var Configuration Effective development settings. */
     private readonly Configuration $configuration;
 
-    /** @var \WeakMap<object, int> Last observed offsets, without retaining optional services. */
-    private \WeakMap $observed;
+    /** @var WeakMap<object, int> Last observed offsets, without retaining optional services. */
+    private WeakMap $observed;
 
-    /** @var \WeakMap<object, int> Baselines for the current handler invocation. */
-    private \WeakMap $offsets;
+    /** @var WeakMap<object, int> Baselines for the current handler invocation. */
+    private WeakMap $offsets;
 
-    /** @var \WeakMap<Profile, bool> Previously exported Twig nodes, without retaining template profiles. */
-    private \WeakMap $twigObserved;
+    /** @var WeakMap<Profile, bool> Previously exported Twig nodes, without retaining template profiles. */
+    private WeakMap $twigObserved;
 
-    /** @var \WeakMap<Profile, bool> Twig nodes belonging to earlier snapshots. */
-    private \WeakMap $twigOffsets;
+    /** @var WeakMap<Profile, bool> Twig nodes belonging to earlier snapshots. */
+    private WeakMap $twigOffsets;
 
     /** @var int Bounded traversal work, including previously exported tree nodes. */
     private int $twigVisited = 0;
 
-    /** @param array<string, mixed> $settings */
+    /**
+     * @param array<string, mixed> $settings Host settings for resolving allowlisted collectors.
+     *
+     * The immutable settings factory is the public configuration construction boundary.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function __construct(
         private readonly ?ContainerInterface $container,
         private readonly array $settings,
         ?Configuration $configuration = null
     ) {
         $this->configuration = $configuration ?? Configuration::fromSettings($settings);
-        $this->observed = new \WeakMap();
-        $this->offsets = new \WeakMap();
-        $this->twigObserved = new \WeakMap();
-        $this->twigOffsets = new \WeakMap();
+        $this->observed = new WeakMap();
+        $this->offsets = new WeakMap();
+        $this->twigObserved = new WeakMap();
+        $this->twigOffsets = new WeakMap();
     }
 
-    /** Begin a snapshot without resolving container services or creating optional connections. */
+    /**
+     * Begin a snapshot without resolving container services or creating optional connections.
+     *
+     * The manual profiler exposes a shared static service; only inspect it if already initialized.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function start(): void
     {
         if (! $this->configuration->isEnabled()) {
             return;
         }
 
-        $this->offsets = new \WeakMap();
+        $this->offsets = new WeakMap();
         $this->twigOffsets = clone $this->twigObserved;
         $this->twigVisited = 0;
         foreach ($this->observed as $source => $count) {
@@ -95,34 +117,14 @@ final class StructuredExporter
             $collectors['eloquent'] = $eloquent;
         }
 
-        if (Profiler::isEnabled() || ProfilerService::hasInstance()) {
-            $service = ProfilerService::getInstance();
-            $profiles = $this->sinceStart($service, $service->getProfiles());
-            $items = [];
-            foreach (array_slice($profiles, 0, 1000) as $profile) {
-                $meta = $profile->metadata();
-                $items[] = [
-                    'label' => self::text($meta['start_label'] ?? ''),
-                    'durationMs' => max(0, $profile->duration() * 1000),
-                    'memoryBytes' => $profile->memoryUsageChange(),
-                ];
-            }
-
-            $collectors['manual'] = ['available' => true, 'profiles' => $items, 'truncated' => count($profiles) > 1000];
+        $manual = $this->manual();
+        if ($manual !== null) {
+            $collectors['manual'] = $manual;
         }
 
-        $twigService = $this->settings['configs']['Container']['Twig'] ?? null;
-        if (class_exists(Profile::class) && is_string($twigService) && $this->container?->has($twigService)) {
-            $profile = $this->container->get($twigService);
-            if ($profile instanceof Profile) {
-                $items = [];
-                $this->twig($profile, $items);
-                $collectors['twig'] = [
-                    'available' => true,
-                    'profiles' => $items,
-                    'truncated' => count($items) >= 1000 || $this->twigVisited >= 4096,
-                ];
-            }
+        $twig = $this->twigSnapshot();
+        if ($twig !== null) {
+            $collectors['twig'] = $twig;
         }
 
         return $collectors;
@@ -139,7 +141,41 @@ final class StructuredExporter
         return mb_strcut(preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value) ?? '', 0, $limit, 'UTF-8');
     }
 
-    /** @return array<string, mixed>|null */
+    /**
+     * @return array<string, mixed>|null Manual measurements completed during this handler invocation.
+     *
+     * The public manual-profiler facade and shared collector are intentionally static.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
+    private function manual(): ?array
+    {
+        if (! Profiler::isEnabled() && ! ProfilerService::hasInstance()) {
+            return null;
+        }
+
+        $service = ProfilerService::getInstance();
+        $profiles = $this->sinceStart($service, $service->getProfiles());
+        $items = [];
+        foreach (array_slice($profiles, 0, 1000) as $profile) {
+            $meta = $profile->metadata();
+            $items[] = [
+                'label' => self::text($meta['start_label'] ?? ''),
+                'durationMs' => max(0, $profile->duration() * 1000),
+                'memoryBytes' => $profile->memoryUsageChange(),
+            ];
+        }
+
+        return ['available' => true, 'profiles' => $items, 'truncated' => count($profiles) > 1000];
+    }
+
+    /**
+     * @return array<string, mixed>|null Already enabled query logging from the optional Capsule facade.
+     *
+     * Capsule exposes its shared connection only through this public static API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     private function eloquent(): ?array
     {
         if (! class_exists(Manager::class)) {
@@ -149,7 +185,7 @@ final class StructuredExporter
         try {
             // Capsule has no public global-instance availability accessor.
             $connection = Manager::connection();
-        } catch (\Throwable) {
+        } catch (Throwable) {
             return null;
         }
 
@@ -187,7 +223,7 @@ final class StructuredExporter
                 continue;
             }
 
-            if ($this->configuration->sqlFilter instanceof \Closure) {
+            if ($this->configuration->sqlFilter instanceof Closure) {
                 $sql = ($this->configuration->sqlFilter)($sql);
             }
 
@@ -209,7 +245,29 @@ final class StructuredExporter
         return ['available' => true, 'queries' => $items, 'truncated' => $truncated];
     }
 
-    /** @param list<array<string, mixed>> $items */
+    /** @return array<string, mixed>|null New nodes from the explicitly configured Twig profiler. */
+    private function twigSnapshot(): ?array
+    {
+        $twigService = $this->settings['configs']['Container']['Twig'] ?? null;
+        if (! class_exists(Profile::class) || ! is_string($twigService) || ! $this->container?->has($twigService)) {
+            return null;
+        }
+
+        $profile = $this->container->get($twigService);
+        if (! $profile instanceof Profile) {
+            return null;
+        }
+
+        $items = [];
+        $this->twig($profile, $items);
+        return [
+            'available' => true,
+            'profiles' => $items,
+            'truncated' => count($items) >= 1000 || $this->twigVisited >= 4096,
+        ];
+    }
+
+    /** @param list<array<string, mixed>> $items Allowlisted Twig measurements collected so far. */
     private function twig(Profile $profile, array &$items, int $depth = 0): void
     {
         if (count($items) >= 1000 || $depth >= 20 || $this->twigVisited >= 4096) {

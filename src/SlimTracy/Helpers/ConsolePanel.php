@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,19 +16,36 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Renders the host application's interactive console controls. */
 final class ConsolePanel implements IBarPanel
 {
+    /**
+     * @var string|null Console icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
-    /** @param array<string, bool|int|string> $cfg */
+    /**
+     * Configures console authentication and terminal assets.
+     *
+     * @param array $cfg Console settings passed to the templates.
+     *
+     * @phpstan-param array<string, bool|int|string> $cfg
+     */
     public function __construct(private array $cfg = [])
     {
     }
 
+    /**
+     * Renders the console tab and notification indicator.
+     *
+     * @return string Toolbar tab HTML with console initialization markup.
+     */
     public function getTab(): string
     {
         // Set blinker to work with no active panel
@@ -45,6 +60,11 @@ final class ConsolePanel implements IBarPanel
         ';
     }
 
+    /**
+     * Renders the interactive terminal container.
+     *
+     * @return string Console panel HTML configured for the host application.
+     */
     public function getPanel(): string
     {
         return (require __DIR__ . '/../Templates/ConsolePanel.phtml')([

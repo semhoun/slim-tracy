@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,22 +16,37 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Displays registered Slim routes and their callable descriptions. */
 final class SlimRouterPanel implements IBarPanel
 {
+    /**
+     * @var string|null Router icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
     /**
-     * @param iterable<\Slim\Interfaces\RouteInterface> $routes
-     * @param array<string, string> $ver
+     * Configures the route collection and framework label.
+     *
+     * @param iterable              $routes Registered routes in display order.
+     * @param array<string, string> $ver    Framework version labels.
+     *
+     * @phpstan-param iterable<\Slim\Interfaces\RouteInterface> $routes
      */
     public function __construct(private readonly iterable $routes = [], private readonly array $ver = [])
     {
     }
 
+    /**
+     * Renders the router toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the route panel.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/SlimRouterPanel.html');
@@ -41,6 +54,11 @@ final class SlimRouterPanel implements IBarPanel
         return '<span title="Slim Router">' . $this->icon . '</span>';
     }
 
+    /**
+     * Renders the registered routes using their callable descriptions.
+     *
+     * @return string Route table HTML with the Slim version label.
+     */
     public function getPanel(): string
     {
         return (require __DIR__ . '/../Templates/RouterBody.phtml')([
@@ -50,7 +68,15 @@ final class SlimRouterPanel implements IBarPanel
         ]);
     }
 
-    /** @return list<array<string, string|object|false|null>> */
+    /**
+     * Describes each route for the panel template.
+     *
+     * RouteDescription is a stateless formatter with a public static API.
+     *
+     * @return list<array<string, string|object|false|null>> Route rows in registration order.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     private function getData(): array
     {
         $data = [];

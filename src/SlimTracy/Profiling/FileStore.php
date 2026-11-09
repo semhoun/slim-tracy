@@ -9,9 +9,13 @@ use RuntimeException;
 /** Shared, private, atomically replaced snapshots with bounded retention. */
 final readonly class FileStore
 {
+    /** @var StorageDirectory Private filesystem and locking boundary. */
+    private StorageDirectory $directory;
+
     /** Keep construction side-effect free, even when storage is unavailable. */
     public function __construct(private Configuration $configuration)
     {
+        $this->directory = new StorageDirectory($configuration->storageDirectory);
     }
 
     /** @param array<string, mixed> $profile */
@@ -21,21 +25,27 @@ final readonly class FileStore
             return false;
         }
 
-        return $this->locked(function () use ($profile): bool {
+        return $this->directory->locked(function () use ($profile): bool {
             $this->prune();
             $profile['expiresAt'] = time() + $this->configuration->ttl;
             return $this->write($profile);
         });
     }
 
-    /** @return array<string, mixed>|null */
+    /**
+     * Preserve the public id parameter name for PHP named-argument callers.
+     *
+     * @return array<string, mixed>|null Non-destructively loaded snapshot.
+     *
+     * @SuppressWarnings(PHPMD.ShortVariable)
+     */
     public function get(string $id): ?array
     {
         if (! $this->configuration->isEnabled() || ! $this->validId($id)) {
             return null;
         }
 
-        return $this->locked(fn (): ?array => $this->read($id));
+        return $this->directory->locked(fn (): ?array => $this->read($id));
     }
 
     /** @return array{profiles: list<array<string, mixed>>, nextCursor: ?string} */
@@ -45,10 +55,10 @@ final readonly class FileStore
             return ['profiles' => [], 'nextCursor' => null];
         }
 
-        return $this->locked(function () use ($after, $limit): array {
+        return $this->directory->locked(function () use ($after, $limit): array {
             $this->prune();
             $profiles = [];
-            foreach ($this->files() as $file) {
+            foreach ($this->directory->files() as $file) {
                 $profile = $this->read(basename($file, '.json'));
                 if ($profile !== null && ($after === null || strcmp($profile['cursor'], $after) > 0)) {
                     $profiles[] = $profile;
@@ -62,14 +72,20 @@ final readonly class FileStore
         });
     }
 
-    /** @param array<string, mixed> $browser Already allowlisted, bounded client declarations. */
+    /**
+     * Preserve the public id parameter name for PHP named-argument callers.
+     *
+     * @param array<string, mixed> $browser Already allowlisted, bounded client declarations.
+     *
+     * @SuppressWarnings(PHPMD.ShortVariable)
+     */
     public function attachBrowser(string $id, array $browser): bool
     {
         if (! $this->configuration->isEnabled() || ! $this->validId($id)) {
             return false;
         }
 
-        return $this->locked(function () use ($id, $browser): bool {
+        return $this->directory->locked(function () use ($id, $browser): bool {
             $profile = $this->read($id);
             if ($profile === null) {
                 return false;
@@ -81,85 +97,15 @@ final readonly class FileStore
     }
 
     /** Never use caller input as an arbitrary filename. */
-    private function validId(mixed $id): bool
+    private function validId(mixed $profileId): bool
     {
-        return is_string($id) && preg_match('/^[a-f0-9]{32}$/D', $id) === 1;
-    }
-
-    /** Serialize readers and writers to enforce aggregate limits across processes. */
-    private function locked(callable $operation): mixed
-    {
-        $directory = $this->configuration->storageDirectory;
-        if (is_link($directory) || (! is_dir($directory) && ! @mkdir($directory, 0700, true) && ! is_dir($directory))) {
-            throw new RuntimeException('Profiler storage unavailable.');
-        }
-
-        $real = realpath($directory);
-        $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-        $root = $documentRoot !== '' ? realpath($documentRoot) : false;
-        if (
-            $real === false || ($root !== false && $root !== '' && ($real === $root
-            || str_starts_with($real, $root . DIRECTORY_SEPARATOR)))
-        ) {
-            throw new RuntimeException('Profiler storage must be outside the document root.');
-        }
-
-        if (! @chmod($directory, 0700)) {
-            throw new RuntimeException('Profiler storage permissions unavailable.');
-        }
-
-        $lockPath = $directory . '/.lock';
-        if (is_link($lockPath)) {
-            throw new RuntimeException('Profiler lock unavailable.');
-        }
-
-        $lock = @fopen($lockPath, 'c');
-        if ($lock === false) {
-            throw new RuntimeException('Profiler lock unavailable.');
-        }
-
-        try {
-            @chmod($lockPath, 0600);
-            if (! @flock($lock, LOCK_EX)) {
-                throw new RuntimeException('Profiler lock unavailable.');
-            }
-
-            return $operation();
-        } finally {
-            flock($lock, LOCK_UN);
-            fclose($lock);
-        }
-    }
-
-    /** @return list<string> */
-    private function files(): array
-    {
-        $files = [];
-        $directory = new \DirectoryIterator($this->configuration->storageDirectory);
-        $scanned = 0;
-        foreach ($directory as $file) {
-            ++$scanned;
-            if ($scanned > 4096) {
-                throw new RuntimeException('Profiler directory entry limit exceeded.');
-            }
-
-            if (! $file->isLink() && $file->isFile() && str_starts_with($file->getFilename(), '.profile-')) {
-                @unlink($file->getPathname());
-                continue;
-            }
-
-            if (! $file->isLink() && $file->isFile() && preg_match('/^[a-f0-9]{32}\.json$/D', $file->getFilename())) {
-                $files[] = $file->getPathname();
-            }
-        }
-
-        return $files;
+        return is_string($profileId) && preg_match('/^[a-f0-9]{32}$/D', $profileId) === 1;
     }
 
     /** @return array<string, mixed>|null */
-    private function read(string $id): ?array
+    private function read(string $profileId): ?array
     {
-        $file = $this->configuration->storageDirectory . '/' . $id . '.json';
+        $file = $this->configuration->storageDirectory . '/' . $profileId . '.json';
         if (
             is_link($file) || ! is_file($file) || filemtime($file) < time() - $this->configuration->ttl
             || filesize($file) > $this->configuration->maxProfileBytes
@@ -169,12 +115,24 @@ final readonly class FileStore
 
         $json = @file_get_contents($file);
         $profile = is_string($json) ? json_decode($json, true, 32) : null;
-        return is_array($profile) && ($profile['id'] ?? null) === $id && is_string($profile['cursor'] ?? null)
-            && is_int($profile['expiresAt'] ?? null) && $profile['expiresAt'] > time()
-            ? $profile : null;
+        return $this->validProfile($profile, $profileId) ? $profile : null;
     }
 
-    /** @param array<string, mixed> $profile */
+    /** Validate identity, cursor and immutable expiration before returning stored data. */
+    private function validProfile(mixed $profile, string $profileId): bool
+    {
+        return is_array($profile) && ($profile['id'] ?? null) === $profileId
+            && is_string($profile['cursor'] ?? null) && is_int($profile['expiresAt'] ?? null)
+            && $profile['expiresAt'] > time();
+    }
+
+    /**
+     * Uses the same stateless text sanitizer as the other exported fields.
+     *
+     * @param array<string, mixed> $profile Snapshot to atomically persist.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     private function write(array $profile): bool
     {
         $profile['cursor'] = sprintf('%020d', (int) (microtime(true) * 1000000)) . '-' . bin2hex(random_bytes(8));
@@ -218,7 +176,7 @@ final readonly class FileStore
     /** Remove expired and over-budget snapshots; always retain the just-written snapshot. */
     private function prune(?string $newest = null): void
     {
-        $files = $this->files();
+        $files = $this->directory->files();
         usort($files, static function (string $left, string $right) use ($newest): int {
             $priority = ($right === $newest) <=> ($left === $newest);
             return $priority !== 0 ? $priority : filemtime($right) <=> filemtime($left);

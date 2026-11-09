@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,21 +16,35 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Displays the host application's pre-rendered HTTP response dump. */
 final class SlimResponsePanel implements IBarPanel
 {
+    /**
+     * @var string|null Response icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
     /**
-     * @param array<string, string> $ver
+     * Configures the response dump and framework label.
+     *
+     * @param string|null           $content Pre-rendered response dump HTML.
+     * @param array<string, string> $ver     Framework version labels.
      */
     public function __construct(private readonly ?string $content = null, private array $ver = [])
     {
     }
 
+    /**
+     * Renders the response toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the response panel.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/SlimResponsePanel.html');
@@ -40,6 +52,11 @@ final class SlimResponsePanel implements IBarPanel
         return '<span title="Slim Http Response">' . $this->icon . '</span>';
     }
 
+    /**
+     * Wraps the response dump in a scrollable panel.
+     *
+     * @return string Response panel HTML with the Slim version label.
+     */
     public function getPanel(): string
     {
         return '<h1>' . $this->icon . ' Slim ' . $this->ver['slim'] . ' Response:</h1>

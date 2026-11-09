@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers\Console;
 
 /** Public console commands, independently usable and exposable through JSON-RPC. */
@@ -33,8 +33,12 @@ final readonly class WebConsoleRPCServer
     private BaseJsonRpcServer $server;
 
     /**
-     * @param array<string, string> $accounts
-     * @param string|array<string, string> $homeDirectory
+     * @param array<string, string> $accounts Usernames mapped to configured password hashes.
+     * @param string|array<string, string> $homeDirectory Shared home or per-user home directories.
+     *
+     * Preserve the public hash-algorithm parameter name for named arguments.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
      */
     public function __construct(
         array $accounts = [],
@@ -75,7 +79,11 @@ final readonly class WebConsoleRPCServer
     }
 
     /**
-     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment
+     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment Client state.
+     *
+     * The published cd name is also the JSON-RPC command name.
+     *
+     * @SuppressWarnings(PHPMD.ShortMethodName)
      *
      * @return array<string, array|string>
      */
@@ -86,7 +94,7 @@ final readonly class WebConsoleRPCServer
     }
 
     /**
-     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment
+     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment Client state.
      *
      * @return array<string, array|string>
      */
@@ -97,7 +105,7 @@ final readonly class WebConsoleRPCServer
     }
 
     /**
-     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment
+     * @param array<string, array|bool|float|int|\stdClass|string|null>|\stdClass|null $environment Client state.
      *
      * @return array<string, array|string>
      */

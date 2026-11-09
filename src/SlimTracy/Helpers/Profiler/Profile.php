@@ -27,7 +27,11 @@ final class Profile implements JsonSerializable
     private const MEMORY_USAGE_CHANGE = 'memory_usage_change';
 
     /**
-     * @param array<string, int|float|string|null> $meta
+     * @param array<string, int|float|string|null> $meta Measurement labels, timestamps and offsets.
+     *
+     * Preserve the published constructor parameter names for named arguments.
+     *
+     * @SuppressWarnings(PHPMD.LongVariable)
      */
     public function __construct(
         private array $meta,
@@ -58,26 +62,31 @@ final class Profile implements JsonSerializable
         return $this->meta;
     }
 
+    /** Return elapsed seconds including nested measurements. */
     public function absoluteDuration(): float
     {
         return $this->absoluteDuration;
     }
 
+    /** Return elapsed seconds excluding nested measurements. */
     public function duration(): float
     {
         return $this->duration;
     }
 
+    /** Return the memory delta in bytes including nested measurements. */
     public function absoluteMemoryUsageChange(): int
     {
         return $this->absoluteMemoryUsageChange;
     }
 
+    /** Return the memory delta in bytes excluding nested measurements. */
     public function memoryUsageChange(): int
     {
         return $this->memoryUsageChange;
     }
 
+    /** Record the finish sample and compute inclusive and exclusive totals. */
     public function complete(?string $label, float $now, int $memoryUsage): void
     {
         $this->meta[SimpleProfiler::FINISH_LABEL] = $label;
@@ -89,12 +98,14 @@ final class Profile implements JsonSerializable
         $this->memoryUsageChange = $this->absoluteMemoryUsageChange - $this->meta['memory_usage_offset'];
     }
 
+    /** Exclude a completed child's time and memory from this profile's own totals. */
     public function excludeChild(self $child): void
     {
         $this->meta[SimpleProfiler::TIME_OFFSET] += $child->absoluteDuration;
         $this->meta['memory_usage_offset'] += $child->absoluteMemoryUsageChange;
     }
 
+    /** Position this measurement as percentages of the shared timeline. */
     public function positionWithin(float $start, float $duration): void
     {
         $before = floor(($this->meta[SimpleProfiler::START_TIME] - $start) / $duration * 100);

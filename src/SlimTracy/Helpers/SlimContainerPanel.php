@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,21 +16,35 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
+/** Displays the host application's pre-rendered container dump. */
 final class SlimContainerPanel implements IBarPanel
 {
+    /**
+     * @var string|null Container icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
     /**
-     * @param array<string, string> $ver
+     * Configures the container dump and framework label.
+     *
+     * @param string|null           $content Pre-rendered container dump HTML.
+     * @param array<string, string> $ver     Framework version labels.
      */
     public function __construct(private readonly ?string $content = null, private array $ver = [])
     {
     }
 
+    /**
+     * Renders the container toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the container panel.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/SlimContainerPanel.html');
@@ -40,6 +52,11 @@ final class SlimContainerPanel implements IBarPanel
         return '<span title="Slim Container">' . $this->icon . '</span>';
     }
 
+    /**
+     * Wraps the container dump in a scrollable panel.
+     *
+     * @return string Container panel HTML with the Slim version label.
+     */
     public function getPanel(): string
     {
         return '<h1>' . $this->icon . ' Slim ' . $this->ver['slim'] . ' Container:</h1>

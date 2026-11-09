@@ -11,7 +11,6 @@ use SlimTracy\Profiling\Configuration;
 use Tracy\Bar;
 use Tracy\Debugger;
 use Tracy\DeferredContent;
-use Tracy\SessionStorage;
 
 /** Renders an isolated bar without the host application's sensitive panels. */
 final readonly class ApiDebugPage
@@ -30,21 +29,7 @@ final readonly class ApiDebugPage
 
         // The isolated bar uses Tracy's public rendering lifecycle, never host deferred content.
         // This @internal integration is pinned and tested with the native AJAX adapter.
-        $storage = new class() implements SessionStorage {
-            /** @var array<string, mixed> */
-            private array $data = [];
-
-            public function isAvailable(): bool
-            {
-                return false;
-            }
-
-            /** @return array<string, mixed> */
-            public function &getData(): array
-            {
-                return $this->data;
-            }
-        };
+        $storage = new NativeSessionIsolation();
         $bar = new Bar();
         $bar->addPanel(new ApiPanel($this->configuration));
         register_shutdown_function(static function () use ($bar, $storage): void {

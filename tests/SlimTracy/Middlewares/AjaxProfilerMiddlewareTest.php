@@ -19,17 +19,21 @@ use SlimTracy\Profiling\Routes;
 use Tests\BaseTestCase;
 use Tracy\Debugger;
 
+/** Verifies opt-in API profiling and its native Tracy integration boundaries. */
 #[RunTestsInSeparateProcesses]
 final class AjaxProfilerMiddlewareTest extends BaseTestCase
 {
+    /** @var string Private profile storage for one test. */
     private string $directory;
 
+    /** Allocate a unique storage path without creating it. */
     protected function setUp(): void
     {
         parent::setUp();
         $this->directory = sys_get_temp_dir() . '/slim-tracy-middleware-' . bin2hex(random_bytes(8));
     }
 
+    /** Remove profile files after each isolated test process. */
     protected function tearDown(): void
     {
         foreach (glob($this->directory . '/{,.}*', GLOB_BRACE) ?: [] as $file) {
@@ -44,6 +48,11 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         parent::tearDown();
     }
 
+    /**
+     * Exercise DBAL's connection factory and the static configuration factory end to end.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testCollectsDoctrineWithoutBarOrPanelSelectionAndPreservesResponseStream(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -69,14 +78,19 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertSame(201, $result->getStatusCode());
         self::assertSame($response->getBody(), $result->getBody());
         self::assertSame(0, $result->getBody()->tell());
-        $id = $result->getHeaderLine('X-SlimTracy-Profile');
-        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $id);
-        $profile = (new FileStore(Configuration::fromSettings($settings)))->get($id);
+        $profileId = $result->getHeaderLine('X-SlimTracy-Profile');
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $profileId);
+        $profile = (new FileStore(Configuration::fromSettings($settings)))->get($profileId);
         self::assertSame('/api', $profile['path']);
         self::assertStringNotContainsString('secret', json_encode($profile));
         self::assertNotEmpty($profile['collectors']['doctrine']);
     }
 
+    /**
+     * Inspect Tracy's public static bar accessor after production-mode processing.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testProductionNeverInstallsApiPanelOrCollects(): void
     {
         Debugger::$productionMode = Debugger::Production;
@@ -87,13 +101,22 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         $response = new Response();
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('handle')->willReturn($response);
-        self::assertSame($response, $middleware->process((new Psr17Factory())->createServerRequest('GET', '/'), $handler));
+        self::assertSame(
+            $response,
+            $middleware->process((new Psr17Factory())->createServerRequest('GET', '/'), $handler)
+        );
         self::assertNull(Debugger::getBar()->getPanel(ApiPanel::class));
         self::assertDirectoryDoesNotExist($this->directory);
         self::assertCount(1, Debugger::$customJsFiles);
         self::assertStringEndsWith('/web/disable-native-ajax.js', Debugger::$customJsFiles[0]);
     }
 
+    /**
+     * Exercise static bootstrap against the exact globals native Tracy dispatch reads.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testNativeDeferredDispatchIsRemovedBeforeEnableForDisabledDebugPage(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -105,6 +128,11 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertArrayNotHasKey('HTTP_X_TRACY_AJAX', $_SERVER);
     }
 
+    /**
+     * Exercise repeated calls of the public static bootstrap API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testDisablingProfilerRetainsNativeSuppression(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -114,6 +142,7 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertStringEndsWith('/web/disable-native-ajax.js', Debugger::$customJsFiles[0]);
     }
 
+    /** Verify reserved preflight requests disable the host bar without collecting. */
     public function testDebugPreflightSuppressesGlobalHostBarWithoutCollecting(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -130,6 +159,11 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertDirectoryDoesNotExist($this->directory);
     }
 
+    /**
+     * Exercise the static configuration factory's incoming-origin interpretation.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testNativeClientTargetsOwnOriginNotIncomingCorsFrontendOrigins(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -142,6 +176,11 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertStringContainsString('data-allowed-origins="[]"', $panel->getPanel());
     }
 
+    /**
+     * Exercise static route registration and configuration factories with a Slim base path.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testSlimBasePathIsAppliedToDebugPageExclusionsAndClientUrls(): void
     {
         Debugger::$productionMode = Debugger::Development;
@@ -165,6 +204,12 @@ final class AjaxProfilerMiddlewareTest extends BaseTestCase
         self::assertStringContainsString('data-base-url="/app/_tracy/api"', $panel->getTab());
     }
 
+    /**
+     * Inspect native Tracy's static storage API after dispatch globals are sanitized.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     public function testBasePathProtectsNativeDeferredDispatchEvenForEncodedPaths(): void
     {
         Debugger::$productionMode = Debugger::Development;

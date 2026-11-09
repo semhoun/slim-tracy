@@ -10,8 +10,10 @@ use SlimTracy\Controllers\SlimTracyConsole;
 use SlimTracy\Controllers\Support\ConsoleOutput;
 use Tests\BaseTestCase;
 
+/** Verifies the console controller's PSR-7 transport and encoding boundaries. */
 final class SlimTracyConsoleTest extends BaseTestCase
 {
+    /** Verify the empty-body error envelope and transport headers. */
     public function testEmptyRequestReturnsParseError(): void
     {
         $response = $this->controller()->index(new ServerRequest('POST', '/console'), new Response());
@@ -25,6 +27,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertArrayNotHasKey('result', $data);
     }
 
+    /** Verify login reads the PSR-7 request body. */
     public function testConsoleLoginUsesPsrRequestBody(): void
     {
         $input = '{"jsonrpc":"2.0","method":"login","params":["dev","dev"],"id":1}';
@@ -37,6 +40,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertArrayNotHasKey('error', $data);
     }
 
+    /** Verify the explicit query transport remains supported. */
     public function testExplicitQueryRawRequestIsSupported(): void
     {
         $request = (new ServerRequest('POST', '/console'))->withQueryParams([
@@ -49,6 +53,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertArrayHasKey('token', $data['result']);
     }
 
+    /** Reject a non-string raw request without invoking a service. */
     public function testMalformedQueryRawRequestReturnsParseError(): void
     {
         $request = (new ServerRequest('POST', '/console'))->withQueryParams(['rawRequest' => ['bad']]);
@@ -58,6 +63,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertSame(-32700, $data['error']['code']);
     }
 
+    /** Verify transport validation uses the PSR-7 method. */
     public function testRequestMethodIsTakenFromPsrRequest(): void
     {
         $response = $this->controller()->index(new ServerRequest('GET', '/console'), new Response());
@@ -66,6 +72,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertSame(-32600, $data['error']['code']);
     }
 
+    /** Verify discovery strips query and fragment from its target. */
     public function testServiceMapUsesExplicitQueryAndUri(): void
     {
         $request = (new ServerRequest('GET', 'https://example.test/console?smd#ignored'))
@@ -79,6 +86,11 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertArrayNotHasKey('execute', $data['services']);
     }
 
+    /**
+     * Exercise the static output converter without modifying tokens or errors.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testOutputEncodingPreservesErrorsAndConvertsOnlyOutput(): void
     {
         $text = "\u{041F}\u{0440}\u{0438}\u{0432}\u{0435}\u{0442}";
@@ -93,6 +105,7 @@ final class SlimTracyConsoleTest extends BaseTestCase
         self::assertSame($error, ConsoleOutput::convert($error, 'CP866'));
     }
 
+    /** Construct the controller with the test application's settings. */
     private function controller(): SlimTracyConsole
     {
         $container = $this->createApp()->getContainer();

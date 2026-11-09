@@ -9,6 +9,10 @@ final class ComposerProject
 {
     /**
      * @return array{packages: array<string, array<string, \stdClass>>, error: string|null}
+     *
+     * Composer document readers and package descriptions are stateless utilities.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
      */
     public static function load(?string $directory, ?string $error): array
     {

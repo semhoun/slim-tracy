@@ -51,6 +51,7 @@ jobs:
       - run: composer validate --strict
       - run: composer check-platform-reqs
       - run: composer test
+      - run: composer phpcs-check
       - if: matrix.php == '8.2'
         run: composer rector-check
       - if: matrix.php == '8.2'

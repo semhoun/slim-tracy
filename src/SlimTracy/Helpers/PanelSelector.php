@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
@@ -28,16 +28,26 @@ use Tracy\IBarPanel;
  */
 final class PanelSelector implements IBarPanel
 {
+    /**
+     * @var string|null Selector icon loaded while rendering the tab.
+     */
     private ?string $icon = null;
 
     /**
-     * @param array<string, int> $cfg
-     * @param array<string, int> $defcfg
+     * Configures the current panel choices and their defaults.
+     *
+     * @param array<string, integer> $cfg    Current panel selections.
+     * @param array<string, integer> $defcfg Default panel selections.
      */
     public function __construct(private readonly array $cfg = [], private readonly array $defcfg = [])
     {
     }
 
+    /**
+     * Renders the panel-selector toolbar tab.
+     *
+     * @return string Toolbar HTML identifying the panel selector.
+     */
     public function getTab(): string
     {
         $this->icon = file_get_contents(__DIR__ . '/../Templates/Icons/PanelSelector.html');
@@ -48,6 +58,11 @@ final class PanelSelector implements IBarPanel
             </span>';
     }
 
+    /**
+     * Renders controls for choosing visible toolbar panels.
+     *
+     * @return string Selector initialization markup and panel-choice form HTML.
+     */
     public function getPanel(): string
     {
         return (require __DIR__ . '/../Templates/PanelSelectorHead.phtml')([])

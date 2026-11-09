@@ -9,8 +9,14 @@ use PHPUnit\Framework\TestCase;
 use SlimTracy\ConsoleLevel;
 use SlimTracy\Debug;
 
+/** Verifies the public debugging helpers and their output boundaries. */
 final class DebugTest extends TestCase
 {
+    /**
+     * Each enum case selects its matching console method through the static Debug API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testEveryConsoleLevelRendersTheSelectedMethod(): void
     {
         foreach (ConsoleLevel::cases() as $level) {
@@ -23,6 +29,11 @@ final class DebugTest extends TestCase
         }
     }
 
+    /**
+     * Exercise the static Debug API against script-element injection.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testConsoleValuesCannotCloseTheScriptElement(): void
     {
         ob_start();
@@ -32,6 +43,11 @@ final class DebugTest extends TestCase
         $this->assertStringContainsString('\\u003C\\/script\\u003E', $output);
     }
 
+    /**
+     * Exercise the static Debug API's atomic encoding failure.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testConsoleRejectsInvalidJsonWithoutPartialOutput(): void
     {
         ob_start();
@@ -46,12 +62,18 @@ final class DebugTest extends TestCase
         }
     }
 
+    /**
+     * Exercise both calls of the public static timer API.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testTimerCanBeStartedAndRead(): void
     {
         $this->assertSame(0.0, Debug::timer('debug-test'));
         $this->assertGreaterThanOrEqual(0.0, Debug::timer('debug-test'));
     }
 
+    /** Verify terminating output in an isolated PHP process. */
     public function testDumpAndExitWritesTheValueAndCallSite(): void
     {
         $autoload = var_export(dirname(__DIR__) . '/vendor/autoload.php', true);

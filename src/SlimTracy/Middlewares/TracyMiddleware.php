@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2017 1f7.wizard@gmail.com.
  * Copyright 2024 Nathanael Semhoun (nathanael@semhoun.net).
@@ -19,6 +17,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace SlimTracy\Middlewares;
 
 use Psr\Http\Message\ResponseInterface;
@@ -32,26 +32,34 @@ use SlimTracy\Middlewares\Support\DebuggerBootstrap;
 use SlimTracy\Middlewares\Support\PanelRegistration;
 use SlimTracy\Middlewares\Support\WritableContainer;
 use SlimTracy\Profiling\Configuration;
-use SlimTracy\Profiling\FileStore;
 use SlimTracy\Profiling\RequestProfiler;
-use SlimTracy\Profiling\StructuredExporter;
 use Tracy\Debugger;
 
 /** Integrates request collection and response panels with Slim. */
 final readonly class TracyMiddleware implements MiddlewareInterface
 {
+    /** @var PanelRegistration|null Legacy HTML panel registration when the bar is visible. */
     private ?PanelRegistration $panels;
 
+    /** @var RequestProfiler|null Optional API collection independent of bar visibility. */
     private ?RequestProfiler $profiler;
 
-    private Configuration $profilerConfiguration;
+    /** @var Configuration Effective development guard and externally visible debug path. */
+    private Configuration $configuration;
 
-    /** @param array<string, scalar|array|object|null> $settings */
+    /**
+     * Wire the native Tracy bootstrap and stateless composition factories once.
+     *
+     * @param App $app Host application whose container supplies optional integrations.
+     * @param array<string, scalar|array|object|null> $settings Full Tracy configuration.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function __construct(App $app, array $settings)
     {
         DebuggerBootstrap::configure($settings['configs'] ?? [], $app->getBasePath());
-        $this->profilerConfiguration = Configuration::fromSettings($settings, $app->getBasePath());
-        if (! Debugger::$showBar && ! $this->profilerConfiguration->isEnabled()) {
+        $this->configuration = Configuration::fromSettings($settings, $app->getBasePath());
+        if (! Debugger::$showBar && ! $this->configuration->isEnabled()) {
             $this->profiler = null;
             $this->panels = null;
             return;
@@ -61,27 +69,23 @@ final readonly class TracyMiddleware implements MiddlewareInterface
         $container->set('tracy.settings', $settings);
 
         $collectorSettings = $settings;
-        if ($this->profilerConfiguration->isEnabled()) {
+        $this->profiler = $this->configuration->isEnabled()
+            ? RequestProfiler::fromContainer($this->configuration, $container, $settings) : null;
+        if ($this->profiler instanceof RequestProfiler) {
             $collectorSettings['showDoctrinePanel'] ??= false;
-            $this->profiler = new RequestProfiler(
-                $this->profilerConfiguration,
-                new FileStore($this->profilerConfiguration),
-                new StructuredExporter($container, $settings),
-            );
             if (Debugger::$showBar) {
-                Debugger::getBar()->addPanel(new ApiPanel($this->profilerConfiguration), ApiPanel::class);
+                Debugger::getBar()->addPanel(new ApiPanel($this->configuration), ApiPanel::class);
             }
-        } else {
-            $this->profiler = null;
         }
 
         CollectorRegistration::register($container, $collectorSettings);
         $this->panels = Debugger::$showBar ? new PanelRegistration($app, $settings) : null;
     }
 
+    /** Collect API measurements and attach legacy panels without altering response bodies. */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $debugRequest = $this->profilerConfiguration->excludes($request->getUri()->getPath());
+        $debugRequest = $this->configuration->excludes($request->getUri()->getPath());
         if ($debugRequest) {
             Debugger::$showBar = false;
         }

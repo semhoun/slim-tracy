@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /**
  * Copyright 2016 1f7.wizard@gmail.com.
  *
@@ -18,6 +16,8 @@ declare(strict_types=1);
  * limitations under the License.
  */
 
+declare(strict_types=1);
+
 namespace Tests\SlimTracy\Helpers\Console;
 
 use PHPUnit\Framework\TestCase;
@@ -26,8 +26,10 @@ use SlimTracy\Helpers\Console\ConsoleAuthentication;
 use SlimTracy\Helpers\Console\ConsoleWorkingDirectory;
 use SlimTracy\Helpers\Console\WebConsoleRPCServer;
 
+/** Verifies console authentication, directory isolation, and command transport. */
 final class WebConsoleRPCServerTest extends TestCase
 {
+    /** Verify trimmed credentials retain the legacy token format and token validation. */
     public function testAuthenticationAndLegacyTokenFormat(): void
     {
         $auth = new ConsoleAuthentication(['dev' => sha1('dev')], passwordHashAlgorithm: 'sha1');
@@ -39,6 +41,7 @@ final class WebConsoleRPCServerTest extends TestCase
         $auth->user('dev:358e8');
     }
 
+    /** Reject an incorrect password. */
     public function testWrongPasswordIsRejected(): void
     {
         $auth = new ConsoleAuthentication(['dev' => sha1('dev')], passwordHashAlgorithm: 'sha1');
@@ -46,6 +49,7 @@ final class WebConsoleRPCServerTest extends TestCase
         $auth->login('dev', 'zzz');
     }
 
+    /** Reject an empty password even when its hash is configured. */
     public function testEmptyPasswordIsRejectedEvenIfItsHashWasConfigured(): void
     {
         $auth = new ConsoleAuthentication(['dev' => sha1('')], passwordHashAlgorithm: 'sha1');
@@ -53,6 +57,7 @@ final class WebConsoleRPCServerTest extends TestCase
         $auth->login('dev', '');
     }
 
+    /** Reject every privileged command without authentication. */
     public function testUnauthenticatedCommandsAreRejected(): void
     {
         $server = new WebConsoleRPCServer(['dev' => 'secret']);
@@ -65,6 +70,7 @@ final class WebConsoleRPCServerTest extends TestCase
         }
     }
 
+    /** Verify login selects each user's configured home directory. */
     public function testLoginAndPerUserHomeDirectories(): void
     {
         $server = new WebConsoleRPCServer(
@@ -83,6 +89,7 @@ final class WebConsoleRPCServerTest extends TestCase
         self::assertSame('Home directory not found: /no-such-console-directory', $missing['output']);
     }
 
+    /** Verify directory restoration and failed directory changes. */
     public function testWorkingDirectoryRestorationAndChange(): void
     {
         $workingDirectory = getcwd();
@@ -98,13 +105,16 @@ final class WebConsoleRPCServerTest extends TestCase
             self::assertNull($directory->restore(['path' => []], 'dev'));
             self::assertSame(__DIR__, getcwd());
             self::assertSame(__DIR__, $directory->change('', 'dev')['environment']['path']);
-            self::assertSame('cd: /no-such-console-directory: No such directory',
-                $directory->change('/no-such-console-directory', 'dev')['output']);
+            self::assertSame(
+                'cd: /no-such-console-directory: No such directory',
+                $directory->change('/no-such-console-directory', 'dev')['output']
+            );
         } finally {
             chdir($workingDirectory);
         }
     }
 
+    /** Verify repeated completion does not retain directory state. */
     public function testCompletionWithExplicitDirectoryCanBeRepeated(): void
     {
         $server = new WebConsoleRPCServer(noLogin: true, homeDirectory: __DIR__);
@@ -126,6 +136,7 @@ final class WebConsoleRPCServerTest extends TestCase
         }
     }
 
+    /** Verify stdout, stderr, and directory-changing command results. */
     public function testCommandsAndCd(): void
     {
         $server = new WebConsoleRPCServer(['dev' => 'secret'], homeDirectory: __DIR__);
@@ -134,16 +145,22 @@ final class WebConsoleRPCServerTest extends TestCase
         try {
             self::assertSame(['output' => ''], $server->run($login['token'], $login['environment'], ''));
             self::assertSame(['output' => 'HelloWorld!!!'], $server->run(
-                $login['token'], $login['environment'], 'printf "HelloWorld!!!\n"'
+                $login['token'],
+                $login['environment'],
+                'printf "HelloWorld!!!\n"'
             ));
             self::assertSame(['output' => 'stderr'], $server->run(
-                $login['token'], $login['environment'], 'printf "stderr\n" >&2'
+                $login['token'],
+                $login['environment'],
+                'printf "stderr\n" >&2'
             ));
             self::assertStringContainsString('not found', $server->run(
-                $login['token'], $login['environment'], 'no-such-console-command'
+                $login['token'],
+                $login['environment'],
+                'no-such-console-command'
             )['output']);
-            $cd = $server->cd($login['token'], $login['environment'], '../');
-            self::assertSame(dirname(__DIR__), $cd['environment']['path']);
+            $change = $server->cd($login['token'], $login['environment'], '../');
+            self::assertSame(dirname(__DIR__), $change['environment']['path']);
             self::assertSame(__DIR__, $server->cd($login['token'], $login['environment'], '')['environment']['path']);
             $error = $server->run($login['token'], ['path' => '/no-such-console-directory'], 'exit 1');
             self::assertStringContainsString('Current working directory not found', $error['output']);
@@ -153,10 +170,14 @@ final class WebConsoleRPCServerTest extends TestCase
         }
     }
 
+    /** Verify named login parameters and the public service map. */
     public function testJsonRpcNamedLoginAndPublicDiscovery(): void
     {
-        $server = new WebConsoleRPCServer(['named-user' => sha1('different-password')],
-            passwordHashAlgorithm: 'sha1', homeDirectory: __DIR__);
+        $server = new WebConsoleRPCServer(
+            ['named-user' => sha1('different-password')],
+            passwordHashAlgorithm: 'sha1',
+            homeDirectory: __DIR__
+        );
         $response = $server->execute('{"jsonrpc":"2.0","method":"login",'
             . '"params":{"password":"different-password","user":"named-user"},"id":3}');
         self::assertSame(3, $response['id']);
@@ -166,6 +187,7 @@ final class WebConsoleRPCServerTest extends TestCase
         self::assertSame('/console', $map['target']);
     }
 
+    /** Reject infrastructure methods at the RPC boundary. */
     public function testConsoleDoesNotExposeInfrastructure(): void
     {
         $server = new WebConsoleRPCServer(['named-user' => 'secret-password-hash']);

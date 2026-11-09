@@ -10,7 +10,16 @@ use Tracy\Debugger;
 /** Applies global Tracy configuration before request collection starts. */
 final class DebuggerBootstrap
 {
-    /** @param array<string, scalar|array|object|null> $config */
+    /**
+     * Applies debugger settings before native asset dispatch can occur.
+     *
+     * Tracy requires its static bootstrap facade; the supporting configuration and asset factories are stateless.
+     *
+     * @param array<string, scalar|array|object|null> $config   Debugger and optional profiler settings.
+     * @param string                                $basePath Host application's Slim base path.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public static function configure(array $config, string $basePath = ''): void
     {
         if (isset($config['Debugger'])) {
@@ -36,7 +45,15 @@ final class DebuggerBootstrap
         Debugger::$showBar = (int) ($config['ShowBar'] ?? Debugger::$showBar) > 0;
     }
 
-    /** Prevents native assets from bypassing guarded profiler routes. */
+    /**
+     * Prevents native assets from bypassing guarded profiler routes.
+     *
+     * Tracy reads native globals before PSR-7 routing; remove dispatch tokens from those same globals before enable().
+     *
+     * @param Configuration $profiler Effective profiler settings and reserved route prefix.
+     *
+     * @SuppressWarnings(PHPMD.Superglobals)
+     */
     private static function guardDebugDispatch(Configuration $profiler): void
     {
         $requestPath = (string) parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);

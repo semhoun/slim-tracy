@@ -7,8 +7,10 @@ use SlimTracy\Helpers\DoctrinePanel;
 use SlimTracy\Helpers\SqlParameters;
 use Tests\BaseTestCase;
 
+/** Verifies Doctrine query rendering and parameter formatting. */
 class DoctrinePanelTest extends BaseTestCase
 {
+    /** Verify the empty panel identifies its Slim and Doctrine versions. */
     public function testDoctrinePanel(): void
     {
         $panel = new DoctrinePanel([], ['slim' => \Slim\App::VERSION]);
@@ -17,6 +19,11 @@ class DoctrinePanelTest extends BaseTestCase
         $this->assertStringContainsString('Slim ' . \Slim\App::VERSION . ' / Doctrine DBAL', $panel->getPanel());
     }
 
+    /**
+     * Exercise the static SQL parameter renderer with DBAL parameter types.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testDoctrinePanelParser(): void
     {
         $data = [
@@ -30,8 +37,10 @@ class DoctrinePanelTest extends BaseTestCase
         ];
         $panel = new DoctrinePanel($data, ['slim' => \Slim\App::VERSION]);
         $html = $panel->getPanel();
-        foreach (['FROM authors WHERE', '0.01043510', 'FROM authors, books WHERE', 'Dragondrums',
-            '0.00326204', '22', 'INTEGER', 'STRING'] as $expected) {
+        foreach (
+            ['FROM authors WHERE', '0.01043510', 'FROM authors, books WHERE', 'Dragondrums',
+            '0.00326204', '22', 'INTEGER', 'STRING'] as $expected
+        ) {
             $this->assertStringContainsString($expected, $html);
         }
         $params = SqlParameters::values($data[1]['params']);
@@ -42,6 +51,11 @@ class DoctrinePanelTest extends BaseTestCase
         $this->assertStringContainsString('STRING', $types);
     }
 
+    /**
+     * Exercise static SQL parameter rendering for null parameters and pending queries.
+     *
+     * @SuppressWarnings(PHPMD.StaticAccess)
+     */
     public function testPendingQueriesAreNotRendered(): void
     {
         $panel = new DoctrinePanel([
