@@ -35,7 +35,7 @@
     "php": ">=8.2 <8.6",
     "ext-mbstring": "*",
     "ext-json": "*",
-    "tracy/tracy": "^2.12.2",
+    "tracy/tracy": ">=2.12.2 <2.12.3",
     "slim/slim": "^4.15.3"
   },
   "require-dev": {

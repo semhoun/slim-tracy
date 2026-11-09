@@ -68,6 +68,120 @@ Only public application methods are callable by JSON-RPC.
 
 # Install
 
+## AJAX/API Profiling Migration
+
+Native Tracy AJAX tracking is removed, including when the new profiler is disabled.
+There is no fallback to native interception and no generated `X-Tracy-Ajax` header.
+The existing HTML bar, panels, and error handling remain available.
+Tracy is pinned to the tested 2.12.2 internal asset and isolated-bar integration.
+
+**Development only: every stored profile is shared, without authentication or user/session isolation.**
+Anyone who can reach this server can read its SQL profiles. Do not expose this mode on the Internet.
+Isolate the development network. CORS is not authentication and does not restrict non-browser clients.
+
+Pass the `tracy` settings subsection itself, not its parent settings object:
+
+```php
+use SlimTracy\Middlewares\TracyMiddleware;
+use SlimTracy\Profiling\Configuration;
+use SlimTracy\Profiling\Routes;
+use Tracy\Debugger;
+
+$tracySettings['configs']['Debugger']['mode'] = Debugger::Development;
+$tracySettings['configs']['AjaxProfiler'] = [
+    'enabled' => true, // Strict boolean; false by default.
+    'origins' => ['http://localhost:5173'], // Exact incoming frontend origins.
+    'path' => '/_tracy/api',
+    'storageDirectory' => $applicationRoot . '/var/tmp/api-profiles', // Outside the web root.
+    'ttl' => 600,
+    'maxProfiles' => 100,
+    'maxProfileBytes' => 262144,
+    'maxTotalBytes' => 10485760,
+];
+
+// Add Slim routing/error middleware first. Slim executes middleware last-added first.
+$app->addRoutingMiddleware();
+$app->addErrorMiddleware(false, true, true); // Keep your application's JSON error renderer.
+$app->add(new TracyMiddleware($app, $tracySettings));
+$configuration = Configuration::fromSettings($tracySettings);
+Routes::register($app, $configuration);
+```
+
+Construct the middleware before any `Debugger::enable()` that could dispatch Tracy assets.
+If mounted below a URL prefix, call `$app->setBasePath()` before constructing the middleware.
+Choose the debugger mode from trusted application configuration, never from request input.
+Activation requires `enabled === true` and resolved `Debugger::$productionMode === false`.
+Disabled or production requests cannot read residual profiles. `ShowBar=false` does not disable active server collection.
+The writable host container must support `set()`. Build Doctrine connections after middleware collector registration.
+API collection ignores panel-selection cookies. Eloquent requires the host to enable its query log.
+
+| Route | Purpose |
+| --- | --- |
+| `GET /_tracy/api` | Direct, unauthenticated debug page with only the API panel |
+| `GET /_tracy/api/profiles?after=<cursor>&limit=50` | Incremental shared history, `profiles` and `nextCursor` |
+| `GET /_tracy/api/profiles/{id}` | Versioned structured server snapshot |
+| `POST /_tracy/api/browser` | Bounded JSON client-reported timing for a server-issued profile ID |
+
+Responses use `Cache-Control: no-store`. Application responses retain their body/status and receive
+`X-SlimTracy-Profile` for correlation. An escaping exception is rethrown with an unknown snapshot status;
+only errors handled inside Slim reliably retain a correlation response header.
+Debug routes, telemetry, assets, and OPTIONS requests are excluded from collection.
+
+For a cross-origin SPA, configure the host API CORS middleware for its application routes too.
+Expose `X-SlimTracy-Profile`, allow the application's actual request headers/methods, and preserve `Vary: Origin`.
+The profiler's exact-origin CORS policy covers its own routes only. Put host CORS outermost, but do not
+short-circuit profiler preflights or overwrite its policy. No third-party cookies or credentials changes are required.
+
+### Twig, React and Vue
+
+HTML/Twig pages receive the common client through Tracy's assets when profiling is active.
+Load Tracy before application API calls you want observed; the initial document load is not a fetch entry.
+For a separately hosted SPA, bundle the independent `packages/ajax-profiler` package and initialize before API calls:
+
+```js
+import { install } from '@slim-tracy/ajax-profiler';
+
+const client = install({
+  enabled: import.meta.env.DEV && profilingEnabled, // Host-controlled opt-in.
+  baseUrl: 'http://localhost:8080/_tracy/api',
+  allowedOrigins: ['http://localhost:8080'], // Outgoing API destinations, not frontend origins.
+});
+
+// React uses this common client only, not a React DevTools plugin.
+if (import.meta.hot) import.meta.hot.dispose(() => client.stop());
+```
+
+For Vue 3, add the optional public Devtools adapter to the same client and app:
+
+```js
+import { installVueDevtools } from '@slim-tracy/ajax-profiler/vue';
+
+const adapter = installVueDevtools(app, client);
+app.mount('#app');
+if (import.meta.hot) import.meta.hot.dispose(() => adapter.stop());
+```
+
+Vue uses the public `@vue/devtools-api` v6 plugin API for its timeline and inspector.
+Imports are SSR-safe; install the browser client only in the browser. No Node SSR renderer is provided.
+Open the backend debug page in a separate tab; do not inject Tracy into a cross-origin SPA.
+Permit the backend origin in the SPA's CSP `connect-src` and your bundled client in `script-src`.
+Tracy HTML additionally needs its own scripts/styles and nonce handling under strict CSP;
+do not weaken a production CSP to enable this development feature.
+
+Server duration, browser duration, and SQL duration are milliseconds; memory is bytes.
+Fetch duration ends at response headers without consuming its body/stream; XHR duration ends at `loadend`.
+These are not identical full-transfer measurements. Never subtract client and server clocks.
+Browser timings are untrusted client reports, not server measurements. Network failures/aborts without
+a response remain local and have no invented server profile. Missing collectors differ from empty measurements.
+Bodies, query strings, cookies, authorization, and SQL parameter values are not exported by default.
+**Raw SQL can still contain sensitive literals.** Supply `configs.AjaxProfiler.sqlFilter`, a host callback
+`fn (string $sql): string => ...`, to redact SQL text; omitted bindings do not anonymize SQL.
+Storage is temporary and bounded, with truncation markers; it is not a durable audit log.
+Persistent PHP worker/global-state compatibility is not guaranteed.
+Ordinary API traffic uses stateless native storage to avoid Tracy's cookie lock; HTML deferred loading is retained.
+Preinitialized host-provided Tracy storage owns its locking behavior. Requests explicitly advertising an HTML
+document may retain native HTML session behavior; construct this integration before Tracy initialization.
+
 **1.**
 
 ```bash
@@ -164,7 +278,7 @@ $app->add(new SlimTracy\Middlewares\TracyMiddleware($app, $tracySettings));
 $app->post('/console', 'SlimTracy\Controllers\SlimTracyConsole:index');
 ```
 
-also copy you want `jquery.terminal.min.js` & `jquery.terminal.min.css`  from vendor/semhoun/runtracy/web and correct path in 'settings' below, or set config with CDN. 
+also copy you want `jquery.terminal.min.js` & `jquery.terminal.min.css` from `vendor/semhoun/slim-tracy/web` and correct path in 'settings' below, or set config with CDN.
 ```php
 'ConsoleTerminalJs' => 'https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.42.2/js/jquery.terminal.min.js',
 'ConsoleTerminalCss' => 'https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.42.2/css/jquery.terminal.min.css',
@@ -251,7 +365,8 @@ return [
         ]
 ```
 
-see config examples in vendor/semhoun/runtracy/Example
+See [configuration examples](examples/settings.php) and [middleware registration](examples/middleware.php).
+These are host-application snippets, not a runnable demo: they reference external `App\` services and configuration.
 
 ![example](ss/panel_selector.png "Panel Selector")
 
@@ -355,12 +470,22 @@ SlimTracy\Helpers\Profiler\Profiler::finish('App');
 ## Tests
 
 ```bash
-$ cd vendor/semhoun/runtracy
-$ composer update
-$ vendor/bin/phpunit
+composer install
+composer test
+composer rector-check
+composer insights-check
+npm ci
+npm --prefix packages/ajax-profiler ci
+npx playwright install chromium
+npm run test:js
+npm run test:browser
+npm run check
 ```
 
-
+Run from this repository root with PHP 8.2-8.5 and Node.js 22+.
+Browser tests start real Slim/Tracy HTTP fixtures on ports 8781-8784 and build framework fixtures into temporary storage.
+They mount React and Vue, exercise real cross-origin fetch/XHR, and use a public Vue Devtools API test bridge.
+The bridge is not an installed Devtools extension test. Browser coverage uses Chromium, not every browser engine.
 
 ## Credits
 

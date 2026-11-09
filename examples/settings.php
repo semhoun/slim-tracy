@@ -78,6 +78,17 @@ return [
         'configs' => [
             // Show bar (mainly for disable bar)
             'ShowBar' => 1,
+            // Opt in only on an isolated development network. History is shared without authentication.
+            'AjaxProfiler' => [
+                'enabled' => false,
+                'origins' => ['http://localhost:5173'],
+                'path' => '/_tracy/api',
+                'storageDirectory' => Settings::getAppRoot() . '/var/tmp/api-profiles',
+                'ttl' => 600,
+                'maxProfiles' => 100,
+                'maxProfileBytes' => 262144,
+                'maxTotalBytes' => 10485760,
+            ],
             // XDebugger IDE key
             'XDebugHelperIDEKey' => 'PHPSTORM',
             // Activate the console
@@ -114,7 +125,7 @@ return [
             ],
             'Debugger' => [
                 // See \Tracy\Debugger::enable
-                'mode' => Debugger::Development,
+                'mode' => $debug ? Debugger::Development : Debugger::Production,
                 'logDirectory' => null,
                 'email' => null,
             ],
