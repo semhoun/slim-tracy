@@ -11,15 +11,18 @@ use Doctrine\DBAL\ParameterType;
 
 final class Statement extends AbstractStatementMiddleware
 {
-    /** @var array<mixed> */
+    /** @var array<array-key, scalar|array|object|resource|null> Bound driver values, including LOB streams. */
     private array $params = [];
 
     /** @var array<ParameterType> */
     private array $types = [];
 
     /** @internal This statement can be only instantiated by its connection. */
-    public function __construct(StatementInterface $statement, private readonly Queries $queries, private readonly string $sql)
-    {
+    public function __construct(
+        StatementInterface $statement,
+        private readonly Queries $queries,
+        private readonly string $sql
+    ) {
         parent::__construct($statement);
     }
 
@@ -31,7 +34,7 @@ final class Statement extends AbstractStatementMiddleware
         parent::bindValue($param, $value, $type);
     }
 
-    public function execute($params = null): ResultInterface
+    public function execute(): ResultInterface
     {
         $start = microtime(true);
         try {

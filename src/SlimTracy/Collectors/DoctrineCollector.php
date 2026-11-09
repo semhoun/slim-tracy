@@ -26,7 +26,7 @@ use Psr\Container\ContainerInterface as Container;
 /**
  * Class DoctrineCollector.
  */
-class DoctrineCollector
+final readonly class DoctrineCollector
 {
     /*
      * DoctrineCollector constructor

@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class SlimRequestPanelTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -29,7 +28,7 @@ class SlimRequestPanelTest extends BaseTestCase
 {
     public function testSlimRequestPanel()
     {
-        $app = new \Slim\App($this->cfg);
+        $app = $this->createApp();
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [
@@ -37,14 +36,14 @@ class SlimRequestPanelTest extends BaseTestCase
         ];
 
         $panel = new \SlimTracy\Helpers\SlimRequestPanel(
-            \Tracy\Dumper::toHtml($app->getContainer()->get('request')),
+            \Tracy\Dumper::toHtml((new \Nyholm\Psr7\Factory\Psr17Factory())->createServerRequest('GET', '/')),
             $v
         );
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Slim Http Request#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Slim Http Request#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Request:#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Request:#', $panel->getPanel());
     }
 }

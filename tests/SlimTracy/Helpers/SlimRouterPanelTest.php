@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class SlimRouterPanelTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -29,7 +28,8 @@ class SlimRouterPanelTest extends BaseTestCase
 {
     public function testSlimRouterPanel()
     {
-        $app = new \Slim\App($this->cfg);
+        $app = $this->createApp();
+        $app->get('/hello/{name}', fn ($request, $response) => $response)->setName('hello');
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [
@@ -37,14 +37,15 @@ class SlimRouterPanelTest extends BaseTestCase
         ];
 
         $panel = new \SlimTracy\Helpers\SlimRouterPanel(
-            \Tracy\Dumper::toHtml($app->getContainer()->get('router')),
+            $app->getRouteCollector()->getRoutes(),
             $v
         );
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Slim Router#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Slim Router#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Router:#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Router:#', $panel->getPanel());
+        $this->assertStringContainsString('/hello/{name}', $panel->getPanel());
     }
 }

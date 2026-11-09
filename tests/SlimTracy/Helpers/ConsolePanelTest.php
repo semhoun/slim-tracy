@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class ConsolePanelTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -34,8 +33,8 @@ class ConsolePanelTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#PTY Console#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#PTY Console#', $panel->getTab());
         // without SlimTracy config 'Profiling is disabled' by default
-        $this->assertRegexp('#jquery.terminal.min.css#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#jquery.terminal.min.css#', $panel->getPanel());
     }
 }

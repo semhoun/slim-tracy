@@ -36,6 +36,36 @@ now in package:
 
 ***
 
+# API Migration
+
+This update supports PHP 8.2 through 8.5 and introduces breaking API changes.
+Classes marked `final` must be composed rather than extended.
+
+The global debugging helpers are replaced by autoloaded methods:
+
+| Previous helper | Replacement |
+| --- | --- |
+| `tdie($value)` | `SlimTracy\Debug::dumpAndExit($value)` |
+| `ttimer($name)` | `SlimTracy\Debug::timer($name)` |
+| `cl($value)` | `SlimTracy\Debug::console($value)` |
+| `cl($value, 'warn')` | `SlimTracy\Debug::console($value, SlimTracy\ConsoleLevel::Warn)` |
+
+Browser console output now rejects invalid JSON and escapes values that could close its script element.
+Console levels are `ConsoleLevel::Log`, `Info`, `Warn`, and `Error`.
+
+Profile measurements are read through methods rather than public properties:
+`metadata()`, `absoluteDuration()`, `duration()`, `absoluteMemoryUsageChange()`, and `memoryUsageChange()`.
+Replace `setPostProcessor($callback)` with `enable(false, $callback)`.
+Each `enable()` call starts a fresh profiling session; use `enable(true)` instead of `enable(1)`.
+`EmptyStackException` is renamed to `EmptyStack`; the singleton trait and interface have been removed.
+`ProfilerService::getInstance()` and `hasInstance()` remain available.
+
+The console controller now uses composition and receives a PSR-7 `ServerRequestInterface`.
+Custom integrations with `WebConsoleRPCServer` configure accounts, authentication, and directories through its constructor.
+Pass the raw JSON body to `execute($rawBody)` instead of populating HTTP globals.
+The low-level console no longer emits HTTP headers; the PSR-7 controller handles them.
+Only public application methods are callable by JSON-RPC.
+
 # Install
 
 **1.**
@@ -122,10 +152,10 @@ $capsule::connection()->enableQueryLog();
 ```
 
 **3.** register middleware
-If param {'configs']['Debugger'] is setted, also enable Tracy\Debugger.
+If param `['configs']['Debugger']` is setted, also enable Tracy\Debugger.
 
 ```php
-$app->add(SlimTracy\Middlewares\TracyMiddleware($app, $tracySettings));
+$app->add(new SlimTracy\Middlewares\TracyMiddleware($app, $tracySettings));
 ```
 
 **4.** register route if you plan use PTY Console
@@ -198,7 +228,7 @@ return [
                 'ConsoleTerminalCss' => '/assets/css/jquery.terminal.min.css',
                 'ConsoleFromEncoding' => 'CP866', // or false
                 'ProfilerPanel' => [
-                    // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(1)
+                    // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(true)
 //                    'primaryValue' =>                   'effective',    // or 'absolute'
                     'show' => [
                         'memoryUsageChart' => 1, // or false
@@ -334,8 +364,8 @@ $ vendor/bin/phpunit
 
 ## Credits
 
-*   [https://github.com/runcmf/runtracy](https://github.com/runcmf/runtracy)
-*   [https://github.com/semhoun/slim-tracy](https://github.com/semhoun/slim-tracy)
+* [https://github.com/runcmf/runtracy](https://github.com/runcmf/runtracy)
+* [https://github.com/semhoun/slim-tracy](https://github.com/semhoun/slim-tracy)
 
 ***
 
@@ -357,15 +387,3 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 ```
-
-[ico-version]: https://img.shields.io/packagist/v/semhoun/runtracy.svg
-
-[ico-license]: https://img.shields.io/badge/license-Apache%202-green.svg
-
-[ico-downloads]: https://img.shields.io/packagist/dt/semhoun/runtracy.svg
-
-[link-packagist]: https://packagist.org/packages/semhoun/runtracy
-
-[link-license]: http://www.apache.org/licenses/LICENSE-2.0
-
-[link-downloads]: https://github.com/semhoun/runtracy

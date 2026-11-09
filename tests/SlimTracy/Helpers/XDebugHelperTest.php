@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class XDebugHelperTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -33,7 +32,7 @@ class XDebugHelperTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#XDEBUG_SESSION#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#XDEBUG_SESSION#', $panel->getTab());
         // test Tracy panel
         $this->assertFalse($panel->getPanel());
     }

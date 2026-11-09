@@ -1,0 +1,55 @@
+<?php
+
+use SlimTracy\Helpers\Profiler\Profiler;
+use SlimTracy\Helpers\Profiler\ProfilerService;
+
+return static function (array $config, array $profiles, ProfilerService $profilerService): string {
+ob_start();
+?>
+<h1>⏱ Profiler info</h1><div class="tracy-inner"><?php if (! Profiler::isEnabled()): ?>Profiling is disabled.<?php else: ?>
+<style>
+    .tracy-inner { max-height: calc(100vh - 5px) !important; }
+    .tracy-addons-profiler-hidden { display:none }
+    .tracy-addons-profiler-bar { display:inline-block;margin:0;height:0.8em; }
+</style>
+<table>
+<?php if ($config['show']['memoryUsageChart']): ?>
+<tr><td colspan="4" style="text-align: center"><?php require __DIR__ . '/profiler-chart.phtml'; ?></td></tr>
+<?php endif;
+$value = $config['primaryValue'] === 'absolute' ? 'absolute' : 'effective'; ?>
+<tr><th>Start</th><th>Finish</th><th>Time (<?= $value ?>)</th><th>Memory change (<?= $value ?>)</th></tr>
+<?php foreach ($profiles as $profile):
+    $meta = $profile->metadata();
+    if (! $config['show']['shortProfiles'] &&
+        $meta[ProfilerService::TIME_LINE_ACTIVE] + $meta[ProfilerService::TIME_LINE_INACTIVE] < 1) {
+        continue;
+    }
+    $durations = [$profile->absoluteDuration(), $profile->duration()];
+    $memory = [$profile->absoluteMemoryUsageChange(), $profile->memoryUsageChange()];
+    if ($value === 'absolute') {
+        $durations = array_reverse($durations);
+        $memory = array_reverse($memory);
+    }
+?>
+<tr><?php if ($meta[Profiler::START_LABEL] === $meta[Profiler::FINISH_LABEL]): ?>
+<td colspan="2"><?= $meta[Profiler::START_LABEL] ?></td>
+<?php else: ?><td><?= $meta[Profiler::START_LABEL] ?></td><td><?= $meta[Profiler::FINISH_LABEL] ?></td><?php endif; ?>
+<?= sprintf('<td>%d&nbsp;ms (%d&nbsp;ms)</td><td>%d&nbsp;kB (%d&nbsp;kB)</td>',
+    $durations[0] * 1000, $durations[1] * 1000, $memory[0] / 1024, $memory[1] / 1024) ?></tr>
+<?php if ($config['show']['timeLines']): ?>
+<tr class="tracy-addons-profiler-hidden"><td colspan="4"></td></tr><tr><td colspan="4">
+<?= sprintf(
+    '<span class="tracy-addons-profiler-bar" style="width:%d%%;background-color:#cccccc;"></span>' .
+    '<span class="tracy-addons-profiler-bar" style="width:%d%%;background-color:#3987d4;"></span>' .
+    '<span class="tracy-addons-profiler-bar" style="width:%s%%;background-color:#6ba9e6;"></span>' .
+    '<span class="tracy-addons-profiler-bar" style="width:%s%%;background-color:#cccccc;"></span>',
+    $meta[ProfilerService::TIME_LINE_BEFORE], $meta[ProfilerService::TIME_LINE_ACTIVE],
+    $meta[ProfilerService::TIME_LINE_INACTIVE], $meta[ProfilerService::TIME_LINE_AFTER]
+) ?>
+</td></tr>
+<?php endif; endforeach; ?>
+</table>
+<?php endif; ?></div>
+<?php
+return (string) ob_get_clean();
+};

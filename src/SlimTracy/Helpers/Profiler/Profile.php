@@ -15,45 +15,101 @@ use JsonSerializable;
  *
  * @license  https://github.com/petrknap/php-profiler/blob/master/LICENSE MIT
  */
-class Profile implements JsonSerializable
+final class Profile implements JsonSerializable
 {
     //region JSON keys
-    protected const ABSOLUTE_DURATION = 'absolute_duration';
+    private const ABSOLUTE_DURATION = 'absolute_duration';
 
-    protected const DURATION = 'duration';
+    private const DURATION = 'duration';
 
-    protected const ABSOLUTE_MEMORY_USAGE_CHANGE = 'absolute_memory_usage_change';
+    private const ABSOLUTE_MEMORY_USAGE_CHANGE = 'absolute_memory_usage_change';
 
-    protected const MEMORY_USAGE_CHANGE = 'memory_usage_change';
-
-    //endregion
-
-    public array $meta = [];
+    private const MEMORY_USAGE_CHANGE = 'memory_usage_change';
 
     /**
-     * Absolute duration in seconds.
+     * @param array<string, int|float|string|null> $meta
      */
-    public float $absoluteDuration;
+    public function __construct(
+        private array $meta,
+        /**
+         * Absolute duration in seconds.
+         */
+        private float $absoluteDuration = 0,
+        /**
+         * Duration in seconds.
+         */
+        private float $duration = 0,
+        /**
+         * Absolute memory usage change in bytes.
+         */
+        private int $absoluteMemoryUsageChange = 0,
+        /**
+         * Memory usage change in bytes.
+         */
+        private int $memoryUsageChange = 0
+    ) {
+    }
 
     /**
-     * Duration in seconds.
+     * @return array<string, int|float|string|null>
      */
-    public float $duration;
+    public function metadata(): array
+    {
+        return $this->meta;
+    }
+
+    public function absoluteDuration(): float
+    {
+        return $this->absoluteDuration;
+    }
+
+    public function duration(): float
+    {
+        return $this->duration;
+    }
+
+    public function absoluteMemoryUsageChange(): int
+    {
+        return $this->absoluteMemoryUsageChange;
+    }
+
+    public function memoryUsageChange(): int
+    {
+        return $this->memoryUsageChange;
+    }
+
+    public function complete(?string $label, float $now, int $memoryUsage): void
+    {
+        $this->meta[SimpleProfiler::FINISH_LABEL] = $label;
+        $this->meta[SimpleProfiler::FINISH_TIME] = $now;
+        $this->meta[SimpleProfiler::FINISH_MEMORY_USAGE] = $memoryUsage;
+        $this->absoluteDuration = $now - $this->meta[SimpleProfiler::START_TIME];
+        $this->duration = $this->absoluteDuration - $this->meta[SimpleProfiler::TIME_OFFSET];
+        $this->absoluteMemoryUsageChange = $memoryUsage - $this->meta[SimpleProfiler::START_MEMORY_USAGE];
+        $this->memoryUsageChange = $this->absoluteMemoryUsageChange - $this->meta['memory_usage_offset'];
+    }
+
+    public function excludeChild(self $child): void
+    {
+        $this->meta[SimpleProfiler::TIME_OFFSET] += $child->absoluteDuration;
+        $this->meta['memory_usage_offset'] += $child->absoluteMemoryUsageChange;
+    }
+
+    public function positionWithin(float $start, float $duration): void
+    {
+        $before = floor(($this->meta[SimpleProfiler::START_TIME] - $start) / $duration * 100);
+        $active = floor($this->duration / $duration * 100);
+        $inactive = floor(($this->absoluteDuration - $this->duration) / $duration * 100);
+        $this->meta[ProfilerService::TIME_LINE_BEFORE] = $before;
+        $this->meta[ProfilerService::TIME_LINE_ACTIVE] = $active;
+        $this->meta[ProfilerService::TIME_LINE_INACTIVE] = $inactive;
+        $this->meta[ProfilerService::TIME_LINE_AFTER] = 100 - $before - $active - $inactive;
+    }
 
     /**
-     * Absolute memory usage change in bytes.
+     * @return array<string, int|float|string|null>
      */
-    public int $absoluteMemoryUsageChange;
-
-    /**
-     * Memory usage change in bytes.
-     */
-    public int $memoryUsageChange;
-
-    /**
-     * {@inheritdoc}
-     */
-    public function jsonSerialize()
+    public function jsonSerialize(): array
     {
         return array_merge(
             $this->meta,

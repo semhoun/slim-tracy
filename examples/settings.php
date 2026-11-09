@@ -8,6 +8,7 @@ use Tracy\Debugger;
 
 $debug = getenv('DEBUG_MODE', true) === 'true';
 $docker = getenv('DOCKER_MODE', true) === 'true';
+$terminalAssets = 'https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.42.2';
 
 return [
     // Is debug moderm
@@ -76,7 +77,7 @@ return [
         'showConsolePanel' => 0,
         'configs' => [
             // Show bar (mainly for disable bar)
-            'ShowBar' => 1
+            'ShowBar' => 1,
             // XDebugger IDE key
             'XDebugHelperIDEKey' => 'PHPSTORM',
             // Activate the console
@@ -93,12 +94,12 @@ return [
             // '' || '/tmp' || ['user1' => '/home/user1', 'user2' => '/home/user2']
             'ConsoleHomeDirectory' => Settings::getAppRoot(),
             // terminal.js full URI
-            'ConsoleTerminalJs' => 'https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.42.2/js/jquery.terminal.min.js',
+            'ConsoleTerminalJs' => $terminalAssets . '/js/jquery.terminal.min.js',
             // terminal.css full URI
-            'ConsoleTerminalCss' => 'https://cdnjs.cloudflare.com/ajax/libs/jquery.terminal/2.42.2/css/jquery.terminal.min.css',
+            'ConsoleTerminalCss' => $terminalAssets . '/css/jquery.terminal.min.css',
             'ConsoleFromEncoding' => 'UTF-8', // or false
             'ProfilerPanel' => [
-                // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(1)
+                // Memory usage 'primaryValue' set as Profiler::enable() or Profiler::enable(true)
                 //                    'primaryValue' =>                   'effective',    // or 'absolute'
                 'show' => [
                     'memoryUsageChart' => 1, // or false
@@ -115,8 +116,8 @@ return [
                 // See \Tracy\Debugger::enable
                 'mode' => Debugger::Development,
                 'logDirectory' => null,
-                'email' => null
-            ]
+                'email' => null,
+            ],
         ],
     ],
 ];

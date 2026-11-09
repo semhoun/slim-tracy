@@ -20,7 +20,7 @@ declare(strict_types=1);
 
 namespace SlimTracy\Exceptions;
 
-class IncorrectUserOrPassword extends \Exception
+final class IncorrectUserOrPassword extends \Exception
 {
     // Empty class
 }

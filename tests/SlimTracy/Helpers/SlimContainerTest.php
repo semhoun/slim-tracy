@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class SlimContainer
  * @package Tests\SlimTracy\Helpers
  */
@@ -29,7 +28,7 @@ class SlimContainerTest extends BaseTestCase
 {
     public function testSlimContainer()
     {
-        $app = new \Slim\App($this->cfg);
+        $app = $this->createApp();
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [
@@ -43,8 +42,8 @@ class SlimContainerTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Slim Container#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Slim Container#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Container:#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Container:#', $panel->getPanel());
     }
 }

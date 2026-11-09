@@ -2,23 +2,9 @@
 
 use Tracy\Helpers;
 
-if (!function_exists('h')) {
-    /**
-     * Convenience method for htmlspecialchars.
-     */
-    function h(?string $str): string
-    {
-		if($str == null) return '';
-	    return htmlspecialchars($str, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-    }
-}
-
-/**
- * @var  string|NULL $lockFile
- * @var  string|NULL $jsonFile
- * @var  string|NULL $error
- * @var  array $data
- */
+return static function (array $data, ?string $error, string $jsonFile, string $lockFile): string {
+    $escape = static fn (?string $value): string => htmlspecialchars($value ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8');
+    ob_start();
 ?>
 <style>
 	.milo-VendorVersionsPanel h2 {
@@ -46,10 +32,10 @@ if (!function_exists('h')) {
         </h1>
     <div class="milo-VendorVersionsPanel">
 		<?php if ($error): ?>
-			<span style="color:red"><?= h($error) ?></span>
+			<span style="color:red"><?= $escape($error) ?></span>
 		<?php else: ?>
 			<?php foreach ($data as $title => $packages): ?>
-			<h2><?= h($title) ?></h2>
+			<h2><?= $escape($title) ?></h2>
 			<table>
 				<thead>
 					<tr>
@@ -61,9 +47,9 @@ if (!function_exists('h')) {
 				<tbody>
 					<?php foreach ($packages as $name => $p): ?>
 						<tr>
-							<td><?= $p->url ? ("<a href='" . h($p->url) . "' target='_blank' rel='noreferrer'>" . h($name) . "</a>") : h($name) ?></td>
-							<td class="version"><?= h($p->installed) ?></td>
-							<td><?= h($p->required) ?></td>
+							<td><?= $p->url ? ("<a href='" . $escape($p->url) . "' target='_blank' rel='noreferrer'>" . $escape($name) . "</a>") : $escape($name) ?></td>
+							<td class="version"><?= $escape($p->installed) ?></td>
+							<td><?= $escape($p->required) ?></td>
 						</tr>
 					<?php endforeach ?>
 				</tbody>
@@ -77,3 +63,6 @@ if (!function_exists('h')) {
 		<?php endif ?>
 	</div>
 </div>
+<?php
+    return (string) ob_get_clean();
+};

@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class EloquentORMPanelTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -29,28 +28,25 @@ class EloquentORMPanelTest extends BaseTestCase
 {
     public function testEloquentORMPanel()
     {
-        if (!class_exists('\\Illuminate\\Database\\Capsule\\Manager')) {
-            $this->markTestSkipped('Illuminate\Database not installed and all tests in this file are invactive!');
-        } else {
-            // Register Eloquent single connections
-            $capsule = new \Illuminate\Database\Capsule\Manager();
-            $capsule->addConnection($this->cfg['settings']['db']['connections']['mysql']);
-            $capsule->setAsGlobal();
-            $capsule->bootEloquent();
-            $capsule::connection()->enableQueryLog();
+        $capsule = new \Illuminate\Database\Capsule\Manager();
+        $capsule->addConnection(['driver' => 'sqlite', 'database' => ':memory:']);
+        $capsule->setAsGlobal();
+        $capsule->bootEloquent();
+        $capsule::connection()->enableQueryLog();
+        $capsule::connection()->select('SELECT 42 AS answer');
+        $this->assertCount(1, $capsule::connection()->getQueryLog());
 
-            $this->assertInstanceOf('\Illuminate\Database\Capsule\Manager', $capsule);
+        $this->assertInstanceOf('\Illuminate\Database\Capsule\Manager', $capsule);
 
-            $panel = new \SlimTracy\Helpers\EloquentORMPanel(
-                $capsule::connection()->getQueryLog()
-            );
-            $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
-
-            // test Tracy tab
-            $this->assertRegexp('#DB Query Info#', $panel->getTab());
-            // test Tracy panel
-            $this->assertRegexp('#Eloquent ORM#', $panel->getPanel());
-        }
+        $panel = new \SlimTracy\Helpers\EloquentORMPanel(
+            $capsule::connection()->getQueryLog(),
+            ['slim' => \Slim\App::VERSION]
+        );
+        $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
+        $this->assertMatchesRegularExpression('#DB Query Info#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Eloquent ORM#', $panel->getPanel());
+        $this->assertStringContainsString('SELECT 42 AS answer', $panel->getPanel());
+        $this->assertSame($panel->getTab(), $panel->getTab());
     }
 
     public function testEloquentORMPanelParser()
@@ -73,17 +69,17 @@ class EloquentORMPanelTest extends BaseTestCase
                     'time' => 4.9100000000000001,
             ];
         // getHeader()
-        $headerRow = $this->callProtectedMethod('getHeader', '\SlimTracy\Helpers\EloquentORMPanel', []);
+        $headerRow = $this->callProtectedMethod('getHeader', '\SlimTracy\Helpers\EloquentORMPanel', [], [[]]);
         // <thead><tr><th><b>Count</b></th><th><b>Time,&nbsp;ms</b></th><th>Query / Bindings</th></tr></thead>
-        $this->assertRegexp('#<thead><tr><th>#', $headerRow);
+        $this->assertMatchesRegularExpression('#<thead><tr><th>#', $headerRow);
 
         // getBaseRow()
-        $baseRow = $this->callProtectedMethod('getBaseRow', '\SlimTracy\Helpers\EloquentORMPanel', []);
+        $baseRow = $this->callProtectedMethod('getBaseRow', '\SlimTracy\Helpers\EloquentORMPanel', [], [[]]);
         // <tr><td>%s</td><td>%s</td><td>%s</td></tr>
-        $this->assertRegexp('#<tr><td>#', $baseRow);
+        $this->assertMatchesRegularExpression('#<tr><td>#', $baseRow);
 
         // parse($data)
-        $result = $this->callProtectedMethod('parse', '\SlimTracy\Helpers\EloquentORMPanel', [[0 => $data]]);
-        $this->assertRegexp('#89a412a4ad6ad9df88b42ca4c12bb271#', $result);
+        $result = $this->callProtectedMethod('parse', '\SlimTracy\Helpers\EloquentORMPanel', [[0 => $data]], [[]]);
+        $this->assertMatchesRegularExpression('#89a412a4ad6ad9df88b42ca4c12bb271#', $result);
     }
 }

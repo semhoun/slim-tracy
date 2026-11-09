@@ -22,23 +22,19 @@ namespace SlimTracy\Helpers;
 
 use Tracy\IBarPanel;
 
-class XDebugHelper implements IBarPanel
+final readonly class XDebugHelper implements IBarPanel
 {
-    public function __construct(protected $ideKey = 'PHPSTORM')
+    public function __construct(private string $ideKey = 'PHPSTORM')
     {
     }
 
-    public function getPanel()
+    public function getPanel(): false
     {
         return false;
     }
 
-    public function getTab()
+    public function getTab(): string
     {
-        ob_start();
-
-        require __DIR__ . '../../Templates/xdebug-helper.tab.phtml';
-
-        return ob_get_clean();
+        return (require __DIR__ . '/../Templates/xdebug-helper.tab.phtml')(['ideKey' => $this->ideKey]);
     }
 }

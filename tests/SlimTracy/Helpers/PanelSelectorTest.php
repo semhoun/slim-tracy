@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class PanelSelectorTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -36,9 +35,9 @@ class PanelSelectorTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Panel Selector#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Panel Selector#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Panel Selector#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Panel Selector#', $panel->getPanel());
     }
 
     public function testFormatPanelName()
@@ -49,16 +48,15 @@ class PanelSelectorTest extends BaseTestCase
             'showXDebugHelper',// 2 upper in word
             'showEloquentORMPanel'// 3 upper in word
         ];
-        $result = $this->callProtectedMethod('formatPanelName', '\SlimTracy\Helpers\PanelSelector', [$words[0]]);
-        $this->assertEquals(' Slim Environment Panel', $result);
-
-        $result = $this->callProtectedMethod('formatPanelName', '\SlimTracy\Helpers\PanelSelector', [$words[1]]);
-        $this->assertEquals(' Slim Container', $result);
-
-        $result = $this->callProtectedMethod('formatPanelName', '\SlimTracy\Helpers\PanelSelector', [$words[2]]);
-        $this->assertEquals(' XDebug Helper', $result);
-
-        $result = $this->callProtectedMethod('formatPanelName', '\SlimTracy\Helpers\PanelSelector', [$words[3]]);
-        $this->assertEquals(' Eloquent ORM Panel', $result);
+        $panel = new \SlimTracy\Helpers\PanelSelector(
+            ['showSlimContainer' => 1],
+            array_fill_keys($words, 0)
+        );
+        $result = $panel->getPanel();
+        foreach ([' Slim Environment Panel', ' Slim Container', ' XDebug Helper', ' Eloquent ORM Panel'] as $label) {
+            $this->assertStringContainsString('/>&nbsp;' . $label, $result);
+        }
+        $this->assertStringContainsString('checked="checked" value="showSlimContainer"', $result);
+        $this->assertSame($result, $panel->getPanel());
     }
 }

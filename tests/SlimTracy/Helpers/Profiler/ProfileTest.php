@@ -24,26 +24,32 @@ use SlimTracy\Helpers\Profiler\Profile;
  * Class ProfileTest
  * @package Tests\SlimTracy\Helpers\Profiler
  */
-class ProfileTest extends \PHPUnit_Framework_TestCase
+#[\PHPUnit\Framework\Attributes\CoversClass(Profile::class)]
+class ProfileTest extends \PHPUnit\Framework\TestCase
 {
-    /**
-     * @covers \SlimTracy\Helpers\Profiler\Profile
-     */
     public function testProfile()
     {
-        $p = new Profile();
+        $p = new Profile(['label' => 'request', 'duration' => 999], 0.05, 0.03, 640, 1024);
+        $this->assertSame(0.05, $p->absoluteDuration());
+        $this->assertSame(0.03, $p->duration());
+        $this->assertSame(640, $p->absoluteMemoryUsageChange());
+        $this->assertSame(1024, $p->memoryUsageChange());
+        $this->assertSame(['label' => 'request', 'duration' => 999], $p->metadata());
+        $this->assertSame([
+            'label' => 'request',
+            'duration' => 0.03,
+            'absolute_duration' => 0.05,
+            'absolute_memory_usage_change' => 640,
+            'memory_usage_change' => 1024,
+        ], $p->jsonSerialize());
+        $this->assertSame($p->jsonSerialize(), json_decode(json_encode($p, JSON_THROW_ON_ERROR), true));
+    }
 
-        $this->assertInstanceOf('\SlimTracy\Helpers\Profiler\Profile', $p);
-        $this->assertTrue(empty($p->meta));
-
-        // fill meta
-        $p->absoluteDuration = 0.05;
-        $p->duration = 0.03;
-        $p->absoluteMemoryUsageChange = 640;
-        $p->memoryUsageChange = 1024;
-
-        $p->meta = $p->jsonSerialize();
-//        fwrite(STDERR, '$p->meta: ' . print_r($p->meta) . " ###\n");
-        $this->assertFalse(empty($p->meta));
+    public function testMetadataReadDoesNotExposeMutableState(): void
+    {
+        $profile = new Profile(['label' => 'original']);
+        $metadata = $profile->metadata();
+        $metadata['label'] = 'changed';
+        $this->assertSame(['label' => 'original'], $profile->metadata());
     }
 }

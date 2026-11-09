@@ -6,28 +6,20 @@ namespace Tests;
  * Class BaseTestCase
  * @package Tests
  */
-class BaseTestCase extends \PHPUnit_Framework_TestCase
+class BaseTestCase extends \PHPUnit\Framework\TestCase
 {
     public $cfg = null;
 
-    public function setUp()
+    protected function setUp(): void
     {
         $this->cfg = require __DIR__ . '/Settings.php';
     }
 
-    public function tearDown()
-    {
-//        ob_end_clean();
-//vendor/bin/phpunit --coverage-html coverage
-//fwrite(STDERR, '$panel->getTab(): ' . $panel->getTab() . " ###\n");
-    }
-
-    protected function callProtectedMethod($name, $classname, $params)
+    protected function callProtectedMethod($name, $classname, $params, array $constructorArgs = [])
     {
         $class = new \ReflectionClass($classname);
         $method = $class->getMethod($name);
-        $method->setAccessible(true);
-        $obj = new $classname($params);
+        $obj = new $classname(...$constructorArgs);
         return $method->invokeArgs($obj, $params);
     }
 
@@ -35,8 +27,7 @@ class BaseTestCase extends \PHPUnit_Framework_TestCase
     {
         $class = new \ReflectionClass($classname);
         $method = $class->getMethod($name);
-        $method->setAccessible(true);
-        $obj = new $classname($params);
+        $obj = new $classname();
         return [
             $obj,
             $method->invokeArgs($obj, $params)
@@ -50,42 +41,30 @@ class BaseTestCase extends \PHPUnit_Framework_TestCase
      * @param string            $requestUri    the request URI
      * @param array|object|null $requestData   the request data
      *
-     * @return \Slim\Http\Response
+     * @return \Psr\Http\Message\ResponseInterface
      */
     public function runApp($requestMethod, $requestUri, $requestData = null)
     {
-        $requestMethod = strtoupper($requestMethod);
-        // Create a mock environment for testing with
-        $environment = \Slim\Http\Environment::mock(
-            [
-                'REQUEST_METHOD' => $requestMethod,
-                'REQUEST_URI'    => $requestUri,
-            ]
+        $request = (new \Nyholm\Psr7\Factory\Psr17Factory())->createServerRequest(
+            strtoupper($requestMethod), $requestUri
         );
         $_SESSION = [];
-        // Set up a request object based on the environment
-        $request = \Slim\Http\Request::createFromEnvironment($environment);
         // Add request data, if it exists
         if (isset($requestData)) {
             $request = $request->withParsedBody($requestData);
         }
-        // Set up a response object
-        $response = new \Slim\Http\Response();
-        // Use the application settings
-        $cfg = require __DIR__ . '/Settings.php';
-        // Instantiate the application
-        $app = new \Slim\App($cfg);
-        // Set up dependencies
-//        require __DIR__ . '/../app/Config/Dependencies.php';
-        // Register middleware
-//        require __DIR__ . '/../app/Config/Middleware.php';
-        // Register routes
-//        require __DIR__ . '/../app/Config/Routes.php';
+        $app = $this->createApp();
+        $app->getContainer()->set('tracy.settings', $this->cfg['settings']['tracy']);
         $app->post('/console', 'SlimTracy\Controllers\SlimTracyConsole:index');
         // Process the application
-        $response = $app->process($request, $response);
+        $response = $app->handle($request);
 
         // Return the response
         return $response;
+    }
+
+    protected function createApp(): \Slim\App
+    {
+        return \Slim\Factory\AppFactory::createFromContainer(new \DI\Container());
     }
 }

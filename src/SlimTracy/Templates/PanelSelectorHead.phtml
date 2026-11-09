@@ -1,0 +1,67 @@
+<?php
+
+declare(strict_types=1);
+
+return static function (array $view): string {
+    ob_start();
+?>
+
+        <script>
+            function getSelectedTracyPanelCheckboxes() {
+                var selchbox = [];
+                var inpfields = document.getElementsByName("selectedPanels[]");
+                var nr_inpfields = inpfields.length;
+                for(var i=0; i<nr_inpfields; i++) {
+                    if(inpfields[i].checked == true) selchbox.push(inpfields[i].value);
+                }
+                return selchbox;
+            }
+
+            function changeTracyPanels(type) {
+                document.cookie = "tracyPanels"+type+"="
+                    +JSON.stringify( getSelectedTracyPanelCheckboxes() )+"; expires=0; path=/";
+                location.reload();
+            }
+
+            function resetTracyPanels() {
+                document.cookie = "tracyPanelsEnabled=;expires=Thu, 01 Jan 1970 00:00:01 GMT; path=/";
+                location.reload();
+            }
+
+            function disableTracy() {
+                document.cookie = "tracyDisabled=1; expires=0; path=/";
+                location.reload();
+            }
+
+            function toggleAllTracyPanels(ele) {
+                var checkboxes = document.getElementsByName("selectedPanels[]");
+                if (ele.checked) {
+                    for (var i = 0; i < checkboxes.length; i++) {
+                        if(checkboxes[i].disabled === false) {
+                            checkboxes[i].checked = true;
+                        }
+                    }
+                }
+                else {
+                     for (var i = 0; i < checkboxes.length; i++) {
+                        if(checkboxes[i].disabled === false) {
+                            checkboxes[i].checked = false;
+                        }
+                    }
+                }
+            }
+        </script>
+
+        <style type="text/css">
+            #tracy-debug-panel-SlimTracy-Helpers-PanelSelector input[type="submit"] {
+                background: #DDEFDD !important;
+                padding: 3px !important;
+                border: 1px solid #D2D2D2 !important;
+                -webkit-border-radius: 5px !important;
+                -moz-border-radius: 5px !important;
+                border-radius: 5px !important;
+                cursor: pointer !important;
+            }
+        </style><?php
+    return (string) ob_get_clean();
+};

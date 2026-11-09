@@ -1,7 +1,9 @@
 <?php
 
+declare(strict_types=1);
+
 /**
- * Copyright 2016 1f7.wizard@gmail.com
+ * Copyright 2016 1f7.wizard@gmail.com.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,262 +20,161 @@
 
 namespace Tests\SlimTracy\Helpers\Console;
 
-use Tests\BaseTestCase;
-use Tests\FakeConsole;
+use PHPUnit\Framework\TestCase;
+use SlimTracy\Exceptions\IncorrectUserOrPassword;
+use SlimTracy\Helpers\Console\ConsoleAuthentication;
+use SlimTracy\Helpers\Console\ConsoleWorkingDirectory;
+use SlimTracy\Helpers\Console\WebConsoleRPCServer;
 
-/**
- * @runTestsInSeparateProcesses
- * Class WebConsoleRPCServerTest
- * @package Tests\SlimTracy\Helpers\Console
- */
-class WebConsoleRPCServerTest extends BaseTestCase
+final class WebConsoleRPCServerTest extends TestCase
 {
-    public function testWebConsoleRPCServerUtilities()
+    public function testAuthenticationAndLegacyTokenFormat(): void
     {
-        $s = new \SlimTracy\Helpers\Console\WebConsoleRPCServer();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $s);
-
-        // isEmptyString($string)
-        $retVal = $this->callProtectedMethod('isEmptyString', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', ['']);
-        $this->assertTrue($retVal);
-        $retVal = $this->callProtectedMethod('isEmptyString', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', ['ZZ']);
-        $this->assertFalse($retVal);
-
-        // isEqualStrings($string1, $string2)
-        $vars = [0 => '123', 1 => '123'];
-        $retVal = $this->callProtectedMethod('isEqualStrings', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', $vars);
-        $this->assertTrue($retVal);
-        $vars = [0 => '123', 1 => '333'];
-        $retVal = $this->callProtectedMethod('isEqualStrings', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', $vars);
-        $this->assertFalse($retVal);
-
-        // getHash($algorithm, $string)
-        $vars = [0 => 'sha1', 1 => 'dev'];
-        $retVal = $this->callProtectedMethod('getHash', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', $vars);
-        $this->assertEquals('34c6fceca75e456f25e7e99531e2425c6c1de443', $retVal);
-
-        $vars = [0 => 'md5', 1 => 'dev'];
-        $retVal = $this->callProtectedMethod('getHash', '\SlimTracy\Helpers\Console\WebConsoleRPCServer', $vars);
-        $this->assertEquals('e77989ed21758e78331b20e477fc5582', $retVal);
+        $auth = new ConsoleAuthentication(['dev' => sha1('dev')], passwordHashAlgorithm: 'sha1');
+        $token = $auth->login(' dev ', ' dev ');
+        self::assertSame('dev:358e86472ec7619731baf6950db699b26e2c2df8d51a31159d40ae4987f6fbab', $token);
+        self::assertSame('dev', $auth->user($token));
+        self::assertSame('', (new ConsoleAuthentication(noLogin: true))->user('not-a-token'));
+        $this->expectException(IncorrectUserOrPassword::class);
+        $auth->user('dev:358e8');
     }
 
-    public function testWebConsoleRPCServerAuth()
+    public function testWrongPasswordIsRejected(): void
     {
-        $cfg = $this->cfg['settings']['tracy']['configs'];
-
-        $console = new FakeConsole();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $console);
-
-        $console->setVar('noLogin', ($cfg['ConsoleNoLogin'] ?: false));
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $console->setVar('accounts', $p, $u);
-        }
-        $console->setVar('passwordHashAlgorithm', ($cfg['ConsoleHashAlgorithm'] ?: ''));
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
-
-        // normal user
-        $ret = $console->authUser('dev', 'dev');
-        $this->assertEquals('dev:358e86472ec7619731baf6950db699b26e2c2df8d51a31159d40ae4987f6fbab', $ret);
-        // get user name
-        $user = $console->authToken($ret);
-        $this->assertEquals('dev', $user);
-
-        // test without login
-        $console->setVar('noLogin', true);
-        $user = $console->authToken($ret);
-        $this->assertTrue($user);
-
-        // fake token
-        $console->setVar('noLogin', false);
-        $this->expectException(\SlimTracy\Exceptions\IncorrectUserOrPassword::class);
-        $console->authToken('dev:358e8');
+        $auth = new ConsoleAuthentication(['dev' => sha1('dev')], passwordHashAlgorithm: 'sha1');
+        $this->expectException(IncorrectUserOrPassword::class);
+        $auth->login('dev', 'zzz');
     }
 
-    public function testWebConsoleRPCServerAuthException()
+    public function testEmptyPasswordIsRejectedEvenIfItsHashWasConfigured(): void
     {
-        $cfg = $this->cfg['settings']['tracy']['configs'];
-
-        $console = new FakeConsole();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $console);
-
-        $console->setVar('noLogin', ($cfg['ConsoleNoLogin'] ?: false));
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $console->setVar('accounts', $p, $u);
-        }
-        $console->setVar('passwordHashAlgorithm', ($cfg['ConsoleHashAlgorithm'] ?: ''));
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
-
-        // fake password
-        $this->expectException(\SlimTracy\Exceptions\IncorrectUserOrPassword::class);
-        $console->authUser('dev', 'zzz');
+        $auth = new ConsoleAuthentication(['dev' => sha1('')], passwordHashAlgorithm: 'sha1');
+        $this->expectException(IncorrectUserOrPassword::class);
+        $auth->login('dev', '');
     }
 
-    public function testWebConsoleRPCServerCommon()
+    public function testUnauthenticatedCommandsAreRejected(): void
     {
-        $cfg = $this->cfg['settings']['tracy']['configs'];
-
-        $console = new FakeConsole();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $console);
-
-        $console->setVar('noLogin', ($cfg['ConsoleNoLogin'] ?: false));
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $console->setVar('accounts', $p, $u);
+        $server = new WebConsoleRPCServer(['dev' => 'secret']);
+        foreach (['run', 'cd', 'completion'] as $method) {
+            $response = $server->execute(json_encode([
+                'jsonrpc' => '2.0', 'method' => $method, 'params' => ['invalid', [], ''], 'id' => 1,
+            ], JSON_THROW_ON_ERROR));
+            self::assertArrayHasKey('error', $response);
+            self::assertArrayNotHasKey('result', $response);
         }
-        $console->setVar('passwordHashAlgorithm', ($cfg['ConsoleHashAlgorithm'] ?: ''));
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
-
-        $ret = $console->getHomeDir('dev');
-        $this->assertRegexp('#\/semhoun\/#s', $ret);
-
-        // check if (is_string($this->homeDirectory))
-        $console->setVar('homeDirectory', 123);
-        $ret = $console->getHomeDir('dev');
-        $this->assertRegexp('#\/semhoun\/#s', $ret);
-
-        // return to def
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
-
-        $ret = $console->getEnv();
-        $this->assertArrayHasKey('path', $ret);
-        $this->assertArrayHasKey('hostname', $ret);
-
-        // set fake dir
-        $ret = $console->setEnv([
-            'path' => '/no-such-dir',
-            'hostname' => 'localhost'
-        ]);
-        $this->assertRegexp('/Current working directory not found/s', $ret['output']);
-
-        // set real dir
-        $env = [
-            'path' => getcwd(),
-            'hostname' => 'localhost'
-        ];
-        $ret = $console->setEnv($env);
-        $this->assertFalse($ret);// false - all ok
-
-        // normal user, get token
-        $ret = $console->authUser('dev', 'dev');
-        $this->assertEquals('dev:358e86472ec7619731baf6950db699b26e2c2df8d51a31159d40ae4987f6fbab', $ret);
-
-        //init($token, $environment)
-        $ret = $console->init($ret, $env);
-        $this->assertFalse($ret);// false - all ok
-
-        // direct login
-        $ret = $console->login('dev', 'dev');
-        $this->assertArrayHasKey('token', $ret);
-        $this->assertArrayHasKey('environment', $ret);
-        // semhoun/
-        $this->assertRegexp('#semhoun\/#s', $ret['environment']['path']);
-
-        // chdir to one level up
-        $cd = $console->cd($ret['token'], $ret['environment'], '../');
-        // check path not contain 'semhoun'
-        $this->assertTrue(strpos($cd['environment']['path'], 'semhoun') === false);
-        // here 'vendor' must be in path
-        // travis path /home/travis/build/semhoun/runtracy/
-//        $this->assertFalse(strpos($cd['environment']['path'], 'vendor') === false);
-
-        // check completion
-        $comp = $console->completion($ret['token'], $ret['environment'], 'run');
-        // $comp containt dirs list
-        $this->assertArrayHasKey('completion', $comp);
-        $this->assertTrue(in_array('runtracy', $comp['completion']));
     }
 
-    public function testWebConsoleRPCServerRun()
+    public function testLoginAndPerUserHomeDirectories(): void
     {
-        $cfg = $this->cfg['settings']['tracy']['configs'];
-
-        $console = new FakeConsole();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $console);
-
-        $console->setVar('noLogin', ($cfg['ConsoleNoLogin'] ?: false));
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $console->setVar('accounts', $p, $u);
-        }
-        $console->setVar('passwordHashAlgorithm', ($cfg['ConsoleHashAlgorithm'] ?: ''));
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
-
-        // login
-        $ret = $console->login('dev', 'dev');
-        $this->assertArrayHasKey('token', $ret);
-        $this->assertArrayHasKey('environment', $ret);
-
-        $res = $console->run($ret['token'], $ret['environment'], 'run');
-        // 'output' => 'sh: 1: run: not found'
-        $this->assertArrayHasKey('output', $res);
-        $this->assertRegexp('#run: not found#s', $res['output']);
-
-        // test sh command
-        $res = $console->run(
-            $ret['token'],
-            $ret['environment'],
-            'if ls / > /dev/null 2> /dev/null ;then echo ok; else echo not_ok; fi'
+        $server = new WebConsoleRPCServer(
+            ['alice' => 'secret', 'bob' => 'different'],
+            homeDirectory: ['alice' => __DIR__, 'bob' => dirname(__DIR__)]
         );
-        $this->assertEquals('ok', $res['output']);
-
-        $res = $console->run(
-            $ret['token'],
-            $ret['environment'],
-            'if ls /no-such-dir > /dev/null 2> /dev/null ;then echo ok; else echo not_ok; fi'
-        );
-        $this->assertEquals('not_ok', $res['output']);
-
-        // test php command
-        $res = $console->run($ret['token'], $ret['environment'], 'php -r \'echo sha1("dev");\'');
-        $this->assertEquals('34c6fceca75e456f25e7e99531e2425c6c1de443', $res['output']);
+        $alice = $server->login('alice', 'secret');
+        $bob = $server->login('bob', 'different');
+        self::assertSame(__DIR__, $alice['environment']['path']);
+        self::assertSame(dirname(__DIR__), $bob['environment']['path']);
+        self::assertArrayHasKey('hostname', $alice['environment']);
+        self::assertSame('alice:' . hash('sha256', 'secret'), $alice['token']);
+        self::assertSame(__DIR__, $server->login('alice', 'secret')['environment']['path']);
+        $missing = (new WebConsoleRPCServer(['dev' => 'dev'], homeDirectory: '/no-such-console-directory'))
+            ->login('dev', 'dev');
+        self::assertSame('Home directory not found: /no-such-console-directory', $missing['output']);
     }
 
-    public function testWebConsoleRPCServerJsonCall()
+    public function testWorkingDirectoryRestorationAndChange(): void
     {
-        $cfg = $this->cfg['settings']['tracy']['configs'];
-
-        $console = new FakeConsole();
-        $this->assertInstanceOf('\SlimTracy\Helpers\Console\BaseJsonRpcServer', $console);
-
-        $console->setVar('noLogin', ($cfg['ConsoleNoLogin'] ?: false));
-        foreach ($cfg['ConsoleAccounts'] as $u => $p) {
-            $console->setVar('accounts', $p, $u);
+        $workingDirectory = getcwd();
+        $directory = new ConsoleWorkingDirectory(['dev' => __DIR__]);
+        try {
+            self::assertNull($directory->restore(null, 'dev'));
+            self::assertSame(__DIR__, getcwd());
+            self::assertNull($directory->restore((object) ['path' => dirname(__DIR__)], 'dev'));
+            self::assertSame(dirname(__DIR__), getcwd());
+            $failure = $directory->restore(['path' => '/no-such-console-directory'], 'dev');
+            self::assertStringContainsString('Current working directory not found', $failure['output']);
+            self::assertSame(getcwd(), $failure['environment']['path']);
+            self::assertNull($directory->restore(['path' => []], 'dev'));
+            self::assertSame(__DIR__, getcwd());
+            self::assertSame(__DIR__, $directory->change('', 'dev')['environment']['path']);
+            self::assertSame('cd: /no-such-console-directory: No such directory',
+                $directory->change('/no-such-console-directory', 'dev')['output']);
+        } finally {
+            chdir($workingDirectory);
         }
-        $console->setVar('passwordHashAlgorithm', ($cfg['ConsoleHashAlgorithm'] ?: ''));
-        $console->setVar('homeDirectory', ($cfg['ConsoleHomeDirectory'] ?: ''));
+    }
 
-        // json login
-        $_GET['rawRequest'] = '{"jsonrpc":"2.0","method":"login","params":["dev","dev"],"id":1}';
-        $ret = $console->execute();
-        $this->assertEquals(
-            'dev:358e86472ec7619731baf6950db699b26e2c2df8d51a31159d40ae4987f6fbab',
-            $ret['result']['token']
-        );
+    public function testCompletionWithExplicitDirectoryCanBeRepeated(): void
+    {
+        $server = new WebConsoleRPCServer(noLogin: true, homeDirectory: __DIR__);
+        $entries = array_values(array_diff(scandir(__DIR__), ['.', '..']));
+        natsort($entries);
+        $expected = array_values(array_map(static fn (string $entry): string => __DIR__ . '/' . $entry, $entries));
+        $workingDirectory = getcwd();
+        try {
+            foreach ([__DIR__, __DIR__ . '/'] as $directory) {
+                $completion = $server->completion('', [], $directory);
+                self::assertSame(['completion' => $expected], $completion);
+                self::assertSame($completion, $server->completion('', [], $directory));
+            }
 
-        // echo command
-        $_GET['rawRequest'] = '{"jsonrpc":"2.0","method":"run","params":' .
-            '["dev:358e86472ec7619731baf6950db699b26e2c2df8d51a31159d40ae4987f6fbab",' .
-            '{"user":"dev","path":"/"},"echo \'HelloWorld!!!\'"],"id":2}';
-        $ret = $console->execute();
-        $this->assertEquals('HelloWorld!!!', $ret['result']['output']);
+            self::assertSame(['completion' => array_values($entries)], $server->completion('', [], 'BaseJson'));
+            self::assertSame(['completion' => []], $server->completion('', [], '/no-such-dir/child'));
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
 
-        // test sequence of params - 1 instead 2
-        $_GET['rawRequest'] = '{"jsonrpc":"2.0","method":"login","params":["dev"],"id":1}';
-        $ret = $console->execute();
-        $this->assertEquals(-32602, $ret['error']['code']);
-        $this->assertRegexp('#Invalid params#s', $ret['error']['message']);
-        $this->assertRegexp('#Check numbers of required params#s', $ret['error']['data']);
+    public function testCommandsAndCd(): void
+    {
+        $server = new WebConsoleRPCServer(['dev' => 'secret'], homeDirectory: __DIR__);
+        $login = $server->login('dev', 'secret');
+        $workingDirectory = getcwd();
+        try {
+            self::assertSame(['output' => ''], $server->run($login['token'], $login['environment'], ''));
+            self::assertSame(['output' => 'HelloWorld!!!'], $server->run(
+                $login['token'], $login['environment'], 'printf "HelloWorld!!!\n"'
+            ));
+            self::assertSame(['output' => 'stderr'], $server->run(
+                $login['token'], $login['environment'], 'printf "stderr\n" >&2'
+            ));
+            self::assertStringContainsString('not found', $server->run(
+                $login['token'], $login['environment'], 'no-such-console-command'
+            )['output']);
+            $cd = $server->cd($login['token'], $login['environment'], '../');
+            self::assertSame(dirname(__DIR__), $cd['environment']['path']);
+            self::assertSame(__DIR__, $server->cd($login['token'], $login['environment'], '')['environment']['path']);
+            $error = $server->run($login['token'], ['path' => '/no-such-console-directory'], 'exit 1');
+            self::assertStringContainsString('Current working directory not found', $error['output']);
+            self::assertArrayHasKey('environment', $error);
+        } finally {
+            chdir($workingDirectory);
+        }
+    }
 
-        // test params cast - not array
-        $_GET['rawRequest'] = '{"jsonrpc":"2.0","method":"login","params":"dev","id":1}';
-        $ret = $console->execute();
-        $this->assertEquals(-32602, $ret['error']['code']);
-        $this->assertRegexp('#Invalid params#s', $ret['error']['message']);
-        $this->assertRegexp('#Cast of params error#s', $ret['error']['data']);
+    public function testJsonRpcNamedLoginAndPublicDiscovery(): void
+    {
+        $server = new WebConsoleRPCServer(['named-user' => sha1('different-password')],
+            passwordHashAlgorithm: 'sha1', homeDirectory: __DIR__);
+        $response = $server->execute('{"jsonrpc":"2.0","method":"login",'
+            . '"params":{"password":"different-password","user":"named-user"},"id":3}');
+        self::assertSame(3, $response['id']);
+        self::assertSame($server->login('named-user', 'different-password')['token'], $response['result']['token']);
+        $map = $server->execute(serviceMap: true, target: '/console');
+        self::assertSame(['login', 'cd', 'completion', 'run'], array_keys($map['services']));
+        self::assertSame('/console', $map['target']);
+    }
 
-        // test params - null
-        $_GET['rawRequest'] = '{"jsonrpc":"2.0","method":"login","params":null,"id":1}';
-        $ret = $console->execute();
-        $this->assertEquals(-32602, $ret['error']['code']);
-        $this->assertRegexp('#Invalid params#s', $ret['error']['message']);
-        $this->assertRegexp('#Empty required params#s', $ret['error']['data']);
+    public function testConsoleDoesNotExposeInfrastructure(): void
+    {
+        $server = new WebConsoleRPCServer(['named-user' => 'secret-password-hash']);
+        foreach (['getAccountPassword', 'getHash', 'execute', '__construct'] as $method) {
+            $response = $server->execute(json_encode([
+                'jsonrpc' => '2.0', 'method' => $method, 'params' => [], 'id' => 1,
+            ], JSON_THROW_ON_ERROR));
+            self::assertSame(-32601, $response['error']['code'], $method);
+            self::assertArrayNotHasKey('result', $response, $method);
+        }
     }
 }

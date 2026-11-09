@@ -21,7 +21,6 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class SlimResponsePanelTest
  * @package Tests\SlimTracy\Helpers
  */
@@ -29,7 +28,7 @@ class SlimResponsePanelTest extends BaseTestCase
 {
     public function testSlimResponsePanel()
     {
-        $app = new \Slim\App($this->cfg);
+        $app = $this->createApp();
         $this->assertInstanceOf('\Slim\App', $app);
 
         $v = [
@@ -37,14 +36,14 @@ class SlimResponsePanelTest extends BaseTestCase
         ];
 
         $panel = new \SlimTracy\Helpers\SlimResponsePanel(
-            \Tracy\Dumper::toHtml($app->getContainer()->get('response')),
+            \Tracy\Dumper::toHtml(new \Nyholm\Psr7\Response()),
             $v
         );
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('#Slim Http Response#', $panel->getTab());
+        $this->assertMatchesRegularExpression('#Slim Http Response#', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('#Response:#', $panel->getPanel());
+        $this->assertMatchesRegularExpression('#Response:#', $panel->getPanel());
     }
 }

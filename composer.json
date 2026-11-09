@@ -31,22 +31,23 @@
       "homepage": "http://www.semhoun.net"
     }
   ],
-  "version": "1.1.0",
   "require": {
-    "php": "^8.2",
+    "php": ">=8.2 <8.6",
     "ext-mbstring": "*",
     "ext-json": "*",
-    "tracy/tracy": "^2.11",
-    "slim/slim": "^4.9"
+    "tracy/tracy": "^2.12.2",
+    "slim/slim": "^4.15.3"
   },
   "require-dev": {
-    "nunomaduro/phpinsights": "^2.13",
-    "rector/rector": "^2.2",
-    "phpunit/phpunit": "^10.0",
-    "illuminate/database": "^10.0",
-    "twig/twig": "^3.3",
-    "slim/twig-view": "^3.3",
-    "doctrine/orm": "^3"
+    "php-di/php-di": "^7.0",
+    "nyholm/psr7": "^1.8.2",
+    "nunomaduro/phpinsights": "^2.13.3",
+    "rector/rector": "^2.8.4",
+    "phpunit/phpunit": "^11.5.57",
+    "illuminate/database": "^12.70.2",
+    "twig/twig": "^3.30.0",
+    "slim/twig-view": "^3.4.1",
+    "doctrine/orm": "^3.7.6"
   },
   "autoload": {
     "psr-4": {
@@ -69,6 +70,9 @@
     "insights-fix": "phpinsights --config-path=./phpinsights.php -- fix"
   },
   "config": {
+    "platform": {
+      "php": "8.2.0"
+    },
     "allow-plugins": {
       "dealerdirect/phpcodesniffer-composer-installer": true
     }

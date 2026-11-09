@@ -21,10 +21,10 @@ namespace Tests\SlimTracy\Helpers;
 use Tests\BaseTestCase;
 
 /**
- * @runTestsInSeparateProcesses
  * Class PhpInfoPanelTest
  * @package Tests\SlimTracy\Helpers
  */
+#[\PHPUnit\Framework\Attributes\CoversClass(\SlimTracy\Helpers\PhpInfoPanel::class)]
 class PhpInfoPanelTest extends BaseTestCase
 {
     public function testPhpInfoPanel()
@@ -33,14 +33,11 @@ class PhpInfoPanelTest extends BaseTestCase
         $this->assertInstanceOf('\Tracy\IBarPanel', $panel);
 
         // test Tracy tab
-        $this->assertRegexp('/PHP Info/s', $panel->getTab());
+        $this->assertMatchesRegularExpression('/PHP Info/s', $panel->getTab());
         // test Tracy panel
-        $this->assertRegexp('/phpinfo/s', $panel->getPanel());
+        $this->assertMatchesRegularExpression('/phpinfo/s', $panel->getPanel());
     }
 
-    /**
-     * @covers \SlimTracy\Helpers\PhpInfoPanel::removeElementsByTagName()
-     */
     public function testRemoveElementsByTagName()
     {
         $html = '
